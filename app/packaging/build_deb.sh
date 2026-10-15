@@ -39,7 +39,7 @@ Architecture: $ARCH
 Installed-Size: $SIZE
 Maintainer: Andrej Ristic <andrej.s.ristic@gmail.com>
 Depends: libc6 (>= 2.34), libgl1, libegl1, libfontconfig1, libxkbcommon0, libdbus-1-3
-Homepage: https://github.com/andrejristic/pse-riemann
+Homepage: https://github.com/zeravatechnologies/andrej-pse-riemann
 Description: PSE Riemann - a workbench around the Riemann zeta function
  A PSE-governed desktop workbench around the Riemann zeta function: zeros on
  the critical line, numeric experiments sealed with a hash, two Guardians, and

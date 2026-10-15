@@ -19,3 +19,9 @@ lokalni venv (`app/.venv`) — ništa sistemski.
 3. **Guardian** — sav saobraćaj kroz jednu funkciju: default-deny allowlist,
    TLS SPKI pinning, ključevi samo model API-jima, detekcija captive portala.
 4. **Ravnoteža** — mjeri koliko čitaš tuđe naspram koliko sam izvodiš.
+
+## Author
+
+Created by **Andrej Ristić**, [Zerava Technologies Inc.](https://www.zeravatech.ca), Toronto.
+
+Source: <https://github.com/zeravatechnologies/andrej-pse-riemann>
