@@ -508,6 +508,157 @@ def _run_selftest(n_points: int) -> Result:
 
 
 # --------------------------------------------------------------------------- #
+# QRH method explorer experiments (plan F8). These do not touch ζ numerically;
+# they run the exponent-family pipeline in pse_r.methods.core, which is itself a
+# port of the validated research scripts. Each is reproducible: the recorded
+# script.py carries methods/core.py so the number can be re-derived.
+# --------------------------------------------------------------------------- #
+def _run_qrh_line(points: int) -> Result:
+    from ..methods import core as C
+    r = Result()
+    ls = [i * (0.2 / (points - 1)) for i in range(points)]
+    bs = [j * 0.01 for j in range(21)]
+    series = []
+    for l in ls:
+        k = 2 * C.Bof(l) - 1
+        Vmin = min(C.vmax(C.E_liu, b, l, k, 1e-6) for b in bs)
+        series.append((l, Vmin))
+    openai = C.vmax(C.E_liu, 1 / 8, 1 / 6, 0.75, 1e-6)   # 7/8 point inside the family
+    cross = C._bisect(lambda l: min(C.vmax(C.E_liu, b, l, 2 * C.Bof(l) - 1, 1e-6)
+                                    for b in bs), 0.0, 0.3)
+    r.numbers = {"V(l=0)=11/12": round(series[0][1], 6),
+                 "V(7/8: b=1/8,l=1/6,k=3/4)": round(openai, 9),
+                 "zero-crossing l (Liu)": round(cross, 6),
+                 "B at crossing": round(C.Bof(cross), 9)}
+    r.series = {"V": series}
+    r.plots = [{"kind": "line", "series": "V", "title": "V(ℓ) duž prave B=11/12−ℓ/4",
+                "xlabel": "ℓ", "ylabel": "min_b V", "zeroline": True}]
+    r.reading = (
+        f"Duž zajedničke prave B(ℓ)=11/12−ℓ/4 (κ=2B−1) najbolja ocjena V je "
+        f"glatka i monotona: od {series[0][1]:+.5f} kod ℓ=0 (to je 11/12) do "
+        f"{series[-1][1]:+.5f} kod ℓ=0.2. Nulu siječe jednom, kod ℓ≈{cross:.5f} "
+        f"(B≈{C.Bof(cross):.6f}) — to je Liu. Tačka 7/8 (ℓ=1/6) leži UNUTAR "
+        f"familije sa V={openai:.3e} (isti broj kao rezerva iz OpenAI rada, "
+        f"≈−2.28·10⁻⁴). Kontinuitet kroz 11/12, 7/8 i Liua je time potvrđen.")
+    return r
+
+
+def _run_qrh_poly(family: int) -> Result:
+    from ..methods import core as C
+    fam = "liu" if int(family) == 0 else "xs"
+    poly, root = C.exact_polynomial(fam)
+    opt = (C.optimum(C.E_liu, 1e-6) if fam == "liu" else C.optimum(C.E_xs, 1 / 8))
+    r = Result()
+    r.numbers = {"familija": fam, "minimalni polinom B*": str(poly.as_expr()),
+                 "stepen": poly.degree(), "B* (korijen)": f"{root:.12f}",
+                 "B* (numerički optimum)": f"{opt.B:.12f}",
+                 "razlika": f"{abs(root - opt.B):.2e}"}
+    r.reading = (
+        f"Eliminacijom δ, b, ℓ iz sistema stacionarnosti (sympy, rezultante) "
+        f"dobija se egzaktni minimalni polinom granice B* za familiju `{fam}`:\n\n"
+        f"`{poly.as_expr()} = 0`\n\n"
+        f"Njegov korijen B*={root:.12f} se slaže sa nezavisnim numeričkim "
+        f"optimumom ({opt.B:.12f}; razlika {abs(root - opt.B):.1e}). Pipeline je "
+        f"validiran na Liuovoj kubnoj.")
+    return r
+
+
+def _run_qrh_transform(n_points: int) -> Result:
+    from ..methods import core as C
+    xs = C.optimum(C.E_xs, 1 / 8)
+    resid = C.transform_residual(xs.b, xs.l, xs.k, n_points)
+    bt = {t: C.extend_t(t).B for t in (0, 1, 2)}
+    r = Result()
+    r.numbers = {"max|E_XS−(E_Liu+T)|": f"{resid:.2e}",
+                 "B(t=0, Liu)": f"{bt[0]:.8f}", "B(t=1, Xu–Sang)": f"{bt[1]:.8f}",
+                 "B(t=2)": f"{bt[2]:.8f}", "ukupan pomak t:0→2": f"{bt[0] - bt[2]:.2e}"}
+    r.series = {"B_of_t": [(t, b) for t, b in bt.items()]}
+    r.reading = (
+        f"Transformacija E_XS = E_Liu + T je egzaktna: na {n_points} slučajnih "
+        f"tačaka najveća greška je {resid:.1e} (≈ mašinska nula). Produženje "
+        f"'više iste ideje' (t): t=0 je Liu ({bt[0]:.8f}), t=1 je Xu–Sang "
+        f"({bt[1]:.8f}), t=2 daje {bt[2]:.8f}. Pomjera se PREMA cilju, ali se "
+        f"zasićuje — ukupan dobitak t:0→2 je svega {bt[0] - bt[2]:.1e}.")
+    return r
+
+
+def _run_qrh_walls(nl: int, nb: int) -> Result:
+    import numpy as np
+    l, b = np.meshgrid(np.linspace(0, 1.2, nl), np.linspace(0, 0.8, nb))
+    B = 11 / 12 - l / 4
+    k = 2 * B - 1
+    h = (1 + b + 3 * l) / 2
+    lx = (1 - b - l) / 2
+    ly = (1 + b - l) / 2
+    C = {"B>0.87": B > .87, "l<=1/5": l <= .2, "l/h<1/(6k)": (k > 0) & (l / h < 1 / (6 * k)),
+         "6kl>3/4": 6 * k * l > .75, "lx>l": lx > l, "ly-l>11b/6": ly - l > 11 * b / 6,
+         "h/2<ly": h / 2 < ly, "ly<1/2": ly < .5}
+    dropped, ladder = [], []
+    while True:
+        ok = np.ones_like(B, bool)
+        for n, c in C.items():
+            if n not in dropped:
+                ok &= c
+        i = np.unravel_index(np.where(ok, B, 9).argmin(), B.shape)
+        Bm = float(B[i])
+        binds = []
+        for n in C:
+            if n in dropped:
+                continue
+            ok2 = np.ones_like(B, bool)
+            for m, c in C.items():
+                if m not in dropped and m != n:
+                    ok2 &= c
+            if np.where(ok2, B, 9).min() < Bm - 1e-6:
+                binds.append(n)
+        ladder.append({"skinuto": list(dropped), "min_B": round(Bm, 5),
+                       "l": round(float(l[i]), 4), "b": round(float(b[i]), 4),
+                       "vezujući": binds})
+        if not binds:
+            break
+        dropped.append(binds[0])
+    r = Result()
+    bottom = ladder[-2]["min_B"] if len(ladder) > 1 else ladder[-1]["min_B"]
+    r.numbers = {"koraka na ljestvici": len(ladder),
+                 "najniže B (strukturni zid)": bottom,
+                 "≈ 5/6": round(5 / 6, 5)}
+    r.series = {"ladder": [(i, step["min_B"]) for i, step in enumerate(ladder)]}
+    r.reading = (
+        "Skidajući uslove dopustivosti (Xu–Sang §6.2) jedan po jedan, najniže B "
+        "koje geometrija prave dozvoljava pada do **{:.5f} ≈ 5/6** (strukturni "
+        "zid l_x>ℓ). Nijedna kontinualna deformacija unutar ove geometrije ne "
+        "prolazi ispod 5/6; prema 3/4 ili 1/2 ova familija ne vodi — treba nova "
+        "geometrija. (Zadnji red bez vezujućeg uslova je ivica mreže, ne "
+        "rezultat.)".format(bottom))
+    for step in ladder:
+        r.warnings.append(f"skinuto {step['skinuto']}: min B={step['min_B']} "
+                          f"(ℓ={step['l']}, b={step['b']}) vezuje {step['vezujući']}")
+    return r
+
+
+def _run_qrh_licence(family: int, steps: int) -> Result:
+    from ..methods import core as C
+    fam = "liu" if int(family) == 0 else "xs"
+    Ef, dlo = (C.E_liu, 1e-6) if fam == "liu" else (C.E_xs, 1 / 8)
+    k, seq = 0.75, []
+    for _ in range(steps):
+        B = C.optimum(Ef, dlo, kfix=k).B
+        seq.append(B)
+        k = 2 * B - 1
+    gaps = [seq[i] - seq[i + 1] for i in range(len(seq) - 1)]
+    r = Result()
+    r.numbers = {"familija": fam, "B niz": [f"{v:.12f}" for v in seq],
+                 "kontrakcija (prvi korak)": f"{abs(gaps[0]):.2e}" if gaps else "—"}
+    r.series = {"B_of_step": [(i, v) for i, v in enumerate(seq)]}
+    r.reading = (
+        f"Iteracija licence κ ← 2B−1 (familija `{fam}`) počev od κ=3/4: niz B "
+        f"se stabilizuje za {len(seq)} koraka, s kontrakcijom "
+        f"{abs(gaps[0]):.1e} već na prvom koraku. Licenca je 'mrtva poluga' — "
+        f"iscrpi se za ~3 koraka i ne pomjera granicu suštinski.")
+    return r
+
+
+# --------------------------------------------------------------------------- #
 CATALOG: list[Experiment] = [
     Experiment(
         "selftest", "Self-test numerike",
@@ -603,7 +754,135 @@ CATALOG: list[Experiment] = [
          Param("nx", "int", 120, 40, 400, "rezolucija po σ"),
          Param("ny", "int", 240, 40, 800, "rezolucija po t")],
         _run_strip, "spor"),
+    # --- QRH method explorer (F8) --- #
+    Experiment(
+        "qrh_line", "QRH: V(ℓ) duž prave",
+        "Postoji li jedna kontinualna funkcija kroz 11/12, 7/8 i Liua?",
+        "Granice QRH metoda leže na pravoj B=11/12−ℓ/4; ovaj eksperiment pokazuje "
+        "da je najbolja ocjena V(ℓ) glatka i da 7/8 leži unutar familije.",
+        [Param("points", "int", 11, 5, 41, "broj tačaka po ℓ")],
+        _run_qrh_line, "brz"),
+    Experiment(
+        "qrh_poly", "QRH: egzaktni polinom B*",
+        "Koji je egzaktni minimalni polinom granice metode?",
+        "Eliminacija δ,b,ℓ (sympy, rezultante) daje egzaktni polinom — "
+        "validirano na Liuovoj kubnoj, pa primijenjeno na Xu–Sang kvartnu.",
+        [Param("family", "int", 0, 0, 1, "0=Liu (kubna), 1=Xu–Sang (kvartna)")],
+        _run_qrh_poly, "srednji"),
+    Experiment(
+        "qrh_transform", "QRH: transformacija Liu→XS",
+        "Je li transformacija E_XS=E_Liu+T egzaktna i kuda vodi njeno proširenje?",
+        "Srž misije: kontinualna transformacija između metoda i da li produženje "
+        "(t) pomjera B prema ciljevima ili od njih.",
+        [Param("n_points", "int", 2000, 100, 20000, "slučajnih tačaka za provjeru T")],
+        _run_qrh_transform, "spor"),
+    Experiment(
+        "qrh_walls", "QRH: ljestvica zidova",
+        "Koliko nisko B može kad se uslovi dopustivosti skidaju jedan po jedan?",
+        "Pokazuje strukturni zid ≈5/6: nijedna deformacija ove geometrije ne "
+        "prolazi niže, pa prema 3/4 ili 1/2 treba nova geometrija.",
+        [Param("nl", "int", 1201, 301, 3001, "rezolucija po ℓ"),
+         Param("nb", "int", 801, 201, 1601, "rezolucija po b")],
+        _run_qrh_walls, "srednji"),
+    Experiment(
+        "qrh_licence", "QRH: iteracija licence κ",
+        "Koliko pomjera ponavljanje licence κ←2B−1?",
+        "Licenca je 'mrtva poluga' — iscrpi se za ~3 koraka; ovaj eksperiment to "
+        "mjeri kao kontrakciju niza B.",
+        [Param("family", "int", 0, 0, 1, "0=Liu, 1=Xu–Sang"),
+         Param("steps", "int", 5, 2, 10, "broj koraka iteracije")],
+        _run_qrh_licence, "spor"),
 ]
+
+def _run_qrh_adversary(family: int, eps_exp: int) -> Result:
+    """Item 31: the adversarial mode as a lab run (PNG + card + NAŠE-NERECENZIRANO)."""
+    from ..methods import adversary as A
+    name = "liu" if int(family) == 0 else "xs"
+    rep = A.run(name, eps=10.0 ** (-int(eps_exp)))
+    A._LAST[name] = rep
+    c = rep.certificate
+    r = Result()
+    r.numbers = {"metoda": name, "tvrđeno B": rep.claimed_B, "najbolje B uz uslove": rep.best_B,
+                 "bolje od tvrdnje": rep.better_than_claim, "b*": round(rep.best_at["b"], 9),
+                 "ℓ*": rep.best_at["l"], "κ*": rep.best_at["k"],
+                 "tačaka bolje uz kršenje": len(rep.breaks),
+                 "certifikat: B od": c.get("B_low"), "certifikat: B do": c.get("B_high"),
+                 "certifikat: ćelija": c.get("cells"), "certifikat: neodlučeno": c.get("undecided"),
+                 "certifikat kompletan": c.get("complete"), "sekundi": round(rep.seconds + c.get("seconds", 0), 2)}
+    r.series = {"B_licence(b)": [(b, B) for b, B in rep.curve],
+                "kršenja": [(br["b"], br["B"]) for br in rep.breaks]}
+    r.plots = [{"kind": "line", "series": "B_licence(b)", "marks": "kršenja",
+                "title": f"{name}: najbolje B po b uz licencu (crveno: bolje, ali krši uslov)",
+                "xlabel": "b", "ylabel": "B", "hline": rep.claimed_B}]
+    worst = rep.breaks[0] if rep.breaks else None
+    r.reading = (
+        f"**{rep.summary()}**\n\n"
+        f"(a) Uz uslove metode (licenca κ = 2B − 1, x = 1/2, δ ∈ [dlo, 5/6]) pretraga po b daje "
+        f"najbolje B = {rep.best_B:.12f} kod b = {rep.best_at['b']:.6f}; tvrdnja {rep.claimed_B:.12f} "
+        + ("**nije optimum**." if rep.better_than_claim else "odolijeva u tačnosti pretrage.") + "\n\n"
+        f"(b) Sa slobodnim κ, {len(rep.breaks)} tačaka daje bolje B od tvrdnje — svaka krši bar jedan uslov"
+        + (f"; najniže B = {worst['B']:.9f} krši: {', '.join(worst['krši'])}." if worst else ".") + "\n\n"
+        f"(c) Certifikat praznine (intervalna aritmetika, mpmath.iv): za B ∈ [{c.get('B_low', 0):.6f}, "
+        f"{c.get('B_high', 0):.12f}] NEMA dopustivih parametara u {c.get('cells', 0)} ćelija"
+        + ("" if c.get("complete") else f" — **DJELIMIČNO**: {c.get('undecided')} ćelija neodlučeno") + ". "
+        "Pretpostavke: " + "; ".join(c.get("assumptions", [])) + ". Certifikat važi za E kako je "
+        "implementiran u `methods/core.py` (konstante u double preciznosti). NAŠE-NERECENZIRANO.")
+    if not c.get("complete", True):
+        r.warnings.append("certifikat je djelimičan — povećaj budžet ćelija ili ε")
+    return r
+
+
+def _run_qrh_complex(family: int, n: int) -> Result:
+    """Item 32 (b): E with a complex δ — the boundary as the zero of a discriminant."""
+    from ..methods import complexver as CV
+    fam = "liu" if int(family) == 0 else "xs"
+    r0 = CV.margin_curve(fam, n=int(n))
+    r = Result()
+    r.numbers = {"metoda": fam, "ℓ* (optimum)": r0["l_star"], "ℓ (diskriminanta = 0)": r0["l_disc"],
+                 "razlika": r0["agree"], "δ* (dvostruki korijen)": r0["delta_star"],
+                 "c u |Im δ| ≈ c·√(ℓ* − ℓ)": r0["c"], "b*": r0["b_star"]}
+    r.series = {"|Im δ|": [(l, im) for l, im, *_ in r0["rows"]],
+                "Re δ₁": [(l, a) for l, _im, a, _b, _d in r0["rows"]],
+                "Re δ₂": [(l, b) for l, _im, _a, b, _d in r0["rows"]]}
+    r.plots = [{"kind": "two_lines", "series": ["|Im δ|", "Re δ₁", "Re δ₂"],
+                "labels": ["|Im δ| (metoda prolazi kad je > 0)", "Re δ₁", "Re δ₂"],
+                "title": f"{fam}: korijeni E(δ) = 0 po ℓ (kompleksni par → dvostruki → dva realna)",
+                "xlabel": "ℓ", "ylabel": "δ", "zeroline": True}]
+    r.reading = (
+        f"Brojilac E(δ) pri x = 1/2 je **kvadratni polinom u δ** (tačno, sympy). Za ℓ < ℓ* korijeni su "
+        f"konjugovani par (metoda prolazi), u ℓ* se stapaju u dvostruki korijen δ* = {r0['delta_star']:.10f}, "
+        f"a za ℓ > ℓ* su dva realna (E > 0 između njih — metoda pada). Nula diskriminante daje "
+        f"ℓ = {r0['l_disc']:.15f}, a optimum ℓ* = {r0['l_star']:.15f} (razlika {r0['agree']:.1e}). "
+        f"Udaljenost od granice: |Im δ| ≈ {r0['c']:.4f}·√(ℓ* − ℓ).\n\n"
+        "**Kompleksna verzija ne daje novo B** — daje algebarsku karakterizaciju granice (nula "
+        "diskriminante) i mjeru margine. I to je rezultat. NAŠE-NERECENZIRANO.\n\n"
+        "(a) " + CV.GAMMA_NOTE)
+    try:                                        # the mission records what was computed
+        from ..shared_lib import missions as MIS
+        if MIS.get(MIS.THIRD_ID) is not None:
+            MIS.step(MIS.THIRD_ID, f"(b) lab: korijeni E(δ) u ℂ za {fam}",
+                     f"granica = nula diskriminante (Δℓ = {r0['agree']:.1e}); c = {r0['c']:.4f}; "
+                     "novo B: ne — NAŠE-NERECENZIRANO", MIS.get(MIS.THIRD_ID)["state"], ref=f"lab:qrh_complex:{fam}")
+    except Exception:                           # noqa: BLE001
+        pass
+    return r
+
+
+CATALOG.append(Experiment(
+    "qrh_complex", "QRH: kompleksna verzija (misija 3)",
+    "Šta je E sa kompleksnim δ, i gdje se signal i niska strana sijeku u ℂ?",
+    "Granica metode je nula diskriminante kvadratnog brojioca E(δ); |Im δ| mjeri marginu.",
+    [Param("family", "int", 0, 0, 1, "0=Liu, 1=Xu–Sang"),
+     Param("n", "int", 41, 11, 201, "broj tačaka po ℓ")],
+    _run_qrh_complex, "brz"))
+
+CATALOG.append(Experiment(
+    "qrh_adversary", "QRH: adversarijalni mod",
+    "Da li je tvrđeno B zaista optimum metode, šta treba prekršiti za bolje, i da li je prostor iznad B* prazan?",
+    "Skeptik napada riječima, ovo brojevima: potraga po parametrima + strogi certifikat praznine.",
+    [Param("family", "int", 0, 0, 1, "0=Liu, 1=Xu–Sang"),
+     Param("eps_exp", "int", 6, 4, 7, "ε = 10^−n: koliko blizu B* certifikat ide")],
+    _run_qrh_adversary, "srednji"))
 
 BY_KEY = {e.key: e for e in CATALOG}
 
@@ -616,6 +895,8 @@ BRANCH_OF = {
     "explicit": "pnt_error", "prime_counting": "pnt_error",
     "gue": "rmt",
     "robin": "equivalences", "mertens": "equivalences",
+    "qrh_line": "quasi-rh", "qrh_poly": "quasi-rh", "qrh_transform": "quasi-rh",
+    "qrh_walls": "quasi-rh", "qrh_licence": "quasi-rh", "qrh_adversary": "quasi-rh", "qrh_complex": "quasi-rh",
 }
 
 

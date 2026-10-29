@@ -15,6 +15,8 @@ trip, is the normal case rather than the exception.
 """
 from __future__ import annotations
 
+from ..i18n import tr
+
 from datetime import datetime
 from pathlib import Path
 
@@ -27,10 +29,11 @@ from PySide6.QtWidgets import (QComboBox, QGraphicsPathItem, QGraphicsScene,
 
 from .. import config
 from ..core import journal as J
-from ..core import theta as TH
+from ..pse import measure as PM
+from ..pse import path as PATH
 from ..llm import backend as B
 from ..llm.budget import BudgetExceeded
-from ..llm.router import NoProvider, router
+from ..llm.router import NoProvider
 from .widgets import MarkdownView, button, small
 
 
@@ -140,12 +143,12 @@ class _Transcribe(QObject):
 
     def run(self):
         try:
-            r = router().call(B.VISION, [B.Msg(
+            r = PATH.ask("whiteboard", [B.Msg(
                 "user",
                 "Prepiši matematiku sa ove table u LaTeX. Vrati SAMO LaTeX.",
-                image_png=self.png)])
+                image_png=self.png)], entity=("operater", "human"))
             self.done.emit(r.text, "")
-        except (NoProvider, BudgetExceeded) as e:
+        except (NoProvider, BudgetExceeded, PATH.Refused) as e:
             self.done.emit("", str(e))
         except Exception as e:                          # noqa: BLE001
             self.done.emit("", f"{type(e).__name__}: {e}")
@@ -161,23 +164,23 @@ class WhiteboardTab(QWidget):
 
         bar = QHBoxLayout()
         self.board = Board()
-        bar.addWidget(button("↶ Undo", self.board.undo))
-        bar.addWidget(button("Obriši sve", self.board.clear))
-        self.b_erase = button("Guma", self._toggle_erase)
+        bar.addWidget(button(tr("↶ Undo"), self.board.undo))
+        bar.addWidget(button(tr("Obriši sve"), self.board.clear))
+        self.b_erase = button(tr("Guma"), self._toggle_erase)
         bar.addWidget(self.b_erase)
         w = QSpinBox()
         w.setRange(1, 12)
         w.setValue(2)
         w.valueChanged.connect(self.board.set_width)
-        bar.addWidget(QLabel("debljina"))
+        bar.addWidget(QLabel(tr("debljina")))
         bar.addWidget(w)
         col = QComboBox()
         col.addItems(["#f0f0f0", "#ffd54f", "#81c784", "#ef5350", "#4fc3f7"])
         col.currentTextChanged.connect(self.board.set_color)
         bar.addWidget(col)
         bar.addStretch(1)
-        bar.addWidget(button("Transkribuj (vision)", self._transcribe))
-        bar.addWidget(button("💾 Snimi u bilješku", self._save, primary=True))
+        bar.addWidget(button(tr("Transkribuj (vision)"), self._transcribe))
+        bar.addWidget(button(tr("💾 Snimi u bilješku"), self._save, primary=True))
         root.addLayout(bar)
 
         split = QSplitter(Qt.Horizontal)
@@ -186,18 +189,18 @@ class WhiteboardTab(QWidget):
         split.addWidget(self.board)
         right = QWidget()
         rv = QVBoxLayout(right)
-        rv.addWidget(QLabel("<b>LaTeX</b> — prijedlog modela, ti ispravljaš"))
+        rv.addWidget(QLabel(tr("<b>LaTeX</b> — prijedlog modela, ti ispravljaš")))
         self.latex = QPlainTextEdit()
         from .widgets import _BASE_PT
         self.latex.setStyleSheet(
             f"font-family:monospace;font-size:{_BASE_PT[0]*0.95:.1f}pt;")
         self.latex.setPlaceholderText(
-            "Ovdje stiže transkripcija. Možeš i sam pisati — snima se i bez "
+            tr("Ovdje stiže transkripcija. Možeš i sam pisati — snima se i bez "
             "modela.\nNepročitani simboli dolaze kao \\text{???} umjesto "
-            "pogađanja.")
+            "pogađanja."))
         self.latex.textChanged.connect(self._preview)
         rv.addWidget(self.latex, 1)
-        rv.addWidget(QLabel("<b>Pregled</b>"))
+        rv.addWidget(QLabel(tr("<b>Pregled</b>")))
         self.preview = MarkdownView()
         rv.addWidget(self.preview, 1)
         self.state = small("")
@@ -209,7 +212,7 @@ class WhiteboardTab(QWidget):
 
     def _toggle_erase(self):
         self.board.erasing = not self.board.erasing
-        self.b_erase.setText("Guma ✓" if self.board.erasing else "Guma")
+        self.b_erase.setText(tr("Guma ✓") if self.board.erasing else tr("Guma"))
 
     def _preview(self):
         t = self.latex.toPlainText().strip()
@@ -217,11 +220,11 @@ class WhiteboardTab(QWidget):
 
     def _transcribe(self):
         if not self.board.strokes:
-            self.state.setText("tabla je prazna")
+            self.state.setText(tr("tabla je prazna"))
             return
         if self._thr is not None:
             return
-        self.state.setText("šaljem sliku vision modelu…")
+        self.state.setText(tr("šaljem sliku vision modelu…"))
         png = self.board.to_png(1.0)
         self._thr = QThread()
         self._w = _Transcribe(png)
@@ -237,18 +240,18 @@ class WhiteboardTab(QWidget):
             self._thr = None
         if err:
             self.state.setText("⛔ " + err[:200] +
-                               "  — potezi su i dalje sigurni, snimi ih.")
+                               tr("  — potezi su i dalje sigurni, snimi ih."))
             return
         clean = (text or "").strip()
         for fence in ("```latex", "```LaTeX", "```"):
             clean = clean.replace(fence, "")
         self.latex.setPlainText(clean.strip())
-        self.state.setText("✅ prijedlog stigao — provjeri prije snimanja "
-                           "(\\text{???} znači da model nije bio siguran)")
+        self.state.setText(tr("✅ prijedlog stigao — provjeri prije snimanja "
+                           "(\\text{???} znači da model nije bio siguran)"))
 
     def _save(self):
         if not self.board.strokes and not self.latex.toPlainText().strip():
-            self.state.setText("nema šta da se snimi")
+            self.state.setText(tr("nema šta da se snimi"))
             return
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         config.DIR_MEDIA.mkdir(parents=True, exist_ok=True)
@@ -257,27 +260,28 @@ class WhiteboardTab(QWidget):
         try:
             self.board.to_svg(svg)
         except Exception as e:                          # noqa: BLE001
-            self.state.setText(f"SVG nije uspio ({e}) — snimam PNG")
+            self.state.setText(tr("SVG nije uspio ({0}) — snimam PNG").format(e))
             svg = None
         png.write_bytes(self.board.to_png(1.0))
 
         tex = self.latex.toPlainText().strip()
         note = config.DIR_NOTES / f"tabla-{stamp}.md"
-        body = [f"---", f"id: tabla-{stamp}",
-                f"title: Tabla {stamp}", "type: note", "status: FOLKLORE",
-                "author: user", "tags:", "  - tabla", "---", "",
-                f"# Tabla {stamp}", "",
-                f"![tabla](media/{png.name})", ""]
+        body = [f"---", "id: tabla-{0}".format(stamp),
+                "title: Tabla {0}".format(stamp), "type: note", "status: FOLKLORE",
+                "author: user", "tags:", tr("  - tabla"), "---", "",
+                tr("# Tabla {0}").format(stamp), "",
+                "![tabla](media/{0})".format(png.name), ""]
         if svg:
-            body += [f"_vektor: `media/{svg.name}`_", ""]
+            body += [tr("_vektor: `media/{0}`_").format(svg.name), ""]
         if tex:
-            body += ["## Prepisano", "", "$$", tex, "$$", "",
-                     "> Transkripcija je prijedlog modela koji si ti potvrdio. "
-                     "Originalni potezi su iznad i oni su izvor istine.", ""]
+            body += [tr("## Prepisano"), "", "$$", tex, "$$", "",
+                     tr("> Transkripcija je prijedlog modela koji si ti potvrdio. "
+                     "Originalni potezi su iznad i oni su izvor istine."), ""]
         note.write_text("\n".join(body), encoding="utf-8")
-        TH.record("user_write", 2.0, source="whiteboard")
+        PATH.work("whiteboard", [PM.Action("snima tablu operatera", "o", checked=True)],
+                  entity=("operater", "human"), note=note.name)
         J.log(J.GATE, "user", {"note": str(note), "svg": str(svg) if svg else "",
                                "transcribed": bool(tex)},
               subject=note.stem, verdict="whiteboard")
-        self.state.setText(f"✅ snimljeno: {note.name}")
+        self.state.setText(tr("✅ snimljeno: {0}").format(note.name))
         self.card_written.emit()

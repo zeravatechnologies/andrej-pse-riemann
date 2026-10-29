@@ -128,32 +128,33 @@ def _resolvers() -> list[str]:
 
 
 def check() -> Posture:
+    from ..i18n import tr
     p = Posture()
 
     # 1. locally installed CA certificates — interception enabler
     extra = _extra_ca_certs()
     if extra:
-        p.add("extra_ca", HIGH, f"{len(extra)} lokalno instaliranih CA sertifikata",
-              "Lokalno dodat CA znači da neko (proxy, 'security' softver, ili napadač "
-              "koji je imao minut sa mašinom) može presretati TLS nevidljivo za obične "
-              "provjere. Naš pinning to ipak hvata, ali ovo treba da znaš.\n"
+        p.add("extra_ca", HIGH, tr("{0} lokalno instaliranih CA sertifikata").format(len(extra)),
+              tr("Lokalno dodat CA znači da neko (proxy, 'security' softver, ili napadač "
+                 "koji je imao minut sa mašinom) može presretati TLS nevidljivo za obične "
+                 "provjere. Naš pinning to ipak hvata, ali ovo treba da znaš.") + "\n"
               + "\n".join(extra[:5]),
               "ls -l /usr/local/share/ca-certificates/")
     else:
-        p.add("extra_ca", INFO, "nema lokalno dodatih CA sertifikata", "čisto")
+        p.add("extra_ca", INFO, tr("nema lokalno dodatih CA sertifikata"), tr("čisto"))
 
     # 2. firewall
     ufw = _ufw_enabled()
     if ufw is False:
-        p.add("firewall", HIGH, "ufw je instaliran ali ISKLJUČEN",
-              "Na tuđoj mreži svaki otvoren port je izložen svima na toj mreži.",
+        p.add("firewall", HIGH, tr("ufw je instaliran ali ISKLJUČEN"),
+              tr("Na tuđoj mreži svaki otvoren port je izložen svima na toj mreži."),
               "sudo ufw default deny incoming && sudo ufw enable")
     elif ufw is None:
-        p.add("firewall", WARN, "ufw nije instaliran",
-              "Bez firewalla se oslanjaš na to da ništa ne sluša.",
+        p.add("firewall", WARN, tr("ufw nije instaliran"),
+              tr("Bez firewalla se oslanjaš na to da ništa ne sluša."),
               "sudo apt install ufw && sudo ufw default deny incoming && sudo ufw enable")
     else:
-        p.add("firewall", INFO, "ufw uključen", "dobro")
+        p.add("firewall", INFO, tr("ufw uključen"), tr("dobro"))
 
     # 3. listening services on non-loopback
     listen = _listening()
@@ -162,20 +163,20 @@ def check() -> Posture:
         for ip, port in listen:
             name, lv, why = _WELL_KNOWN.get(port, (f"port {port}", WARN,
                                                    "nepoznat servis sluša prema mreži"))
-            rows.append(f"  {ip}:{port}  {name} — {why}")
+            rows.append(f"  {ip}:{port}  {name} — {tr(why)}")
             if lv == HIGH:
                 worst = HIGH
-        p.add("listening", worst, f"{len(listen)} servisa sluša izvan loopbacka",
+        p.add("listening", worst, tr("{0} servisa sluša izvan loopbacka").format(len(listen)),
               "\n".join(rows),
-              "sudo ss -tlnp   # vidi ko sluša, pa ugasi šta ti ne treba na putu")
+              "sudo ss -tlnp   # " + tr("vidi ko sluša, pa ugasi šta ti ne treba na putu"))
     else:
-        p.add("listening", INFO, "ništa ne sluša izvan loopbacka", "najbolji mogući ishod")
+        p.add("listening", INFO, tr("ništa ne sluša izvan loopbacka"), tr("najbolji mogući ishod"))
 
     # 4. IP forwarding
     try:
         if Path("/proc/sys/net/ipv4/ip_forward").read_text().strip() == "1":
-            p.add("ip_forward", WARN, "IP forwarding je uključen",
-                  "Mašina prosljeđuje pakete — rijetko potrebno na laptopu.",
+            p.add("ip_forward", WARN, tr("IP forwarding je uključen"),
+                  tr("Mašina prosljeđuje pakete — rijetko potrebno na laptopu."),
                   "sudo sysctl -w net.ipv4.ip_forward=0")
     except OSError:
         pass
@@ -186,21 +187,21 @@ def check() -> Posture:
         local = all(r.startswith(("127.", "::1")) for r in res)
         p.add("dns", INFO if local else WARN,
               f"DNS: {', '.join(res[:3])}",
-              "DNS koji ti daje tuđa mreža vidi svaki domen koji posjetiš i može "
-              "lagati. Naš TLS pinning to ne dozvoljava da postane presretanje, ali "
-              "metapodaci cure." if not local else "lokalni resolver")
+              tr("DNS koji ti daje tuđa mreža vidi svaki domen koji posjetiš i može "
+                 "lagati. Naš TLS pinning to ne dozvoljava da postane presretanje, ali "
+                 "metapodaci cure.") if not local else tr("lokalni resolver"))
 
     # 6. our own hygiene
     sf = Path(config.SECRETS_FILE)
     if sf.exists():
         mode = stat.S_IMODE(sf.stat().st_mode)
         p.add("secrets", INFO if mode == 0o600 else HIGH,
-              f"secrets.json ima prava {oct(mode)}",
-              "ključevi moraju biti 0600 i van vaulta"
-              if mode != 0o600 else "ispravno (0600, van vaulta)",
+              tr("secrets.json ima prava {0}").format(oct(mode)),
+              tr("ključevi moraju biti 0600 i van vaulta")
+              if mode != 0o600 else tr("ispravno (0600, van vaulta)"),
               f"chmod 600 {sf}" if mode != 0o600 else "")
     else:
-        p.add("secrets", INFO, "secrets.json još ne postoji", "čarobnjak će ga napraviti")
+        p.add("secrets", INFO, tr("secrets.json još ne postoji"), tr("čarobnjak će ga napraviti"))
 
     # 7. pins learned on which network
     from .tls import pins as _pins
@@ -210,29 +211,30 @@ def check() -> Posture:
     cur = network_id()
     if ps.hosts():
         if nets and cur not in nets:
-            p.add("pins", INFO, f"pinovi naučeni na drugoj mreži ({', '.join(sorted(nets))[:60]})",
-                  f"Sada si na {cur}. To je dobro: pinovi su naučeni ranije i sada se "
-                  f"provjeravaju protiv ove mreže — tako i treba.")
+            p.add("pins", INFO, tr("pinovi naučeni na drugoj mreži ({0})").format(", ".join(sorted(nets))[:60]),
+                  tr("Sada si na {0}. To je dobro: pinovi su naučeni ranije i sada se "
+                     "provjeravaju protiv ove mreže — tako i treba.").format(cur))
         else:
             p.add("pins", WARN if cur == "unknown" else INFO,
-                  f"pinovi naučeni na trenutnoj mreži ({cur})",
-                  "Ako ovo NIJE tvoja mreža od povjerenja, pinovi ne vrijede ništa: "
-                  "naučeni su možda od presretača. Obriši ih i ponovi sa mreže kojoj "
-                  "vjeruješ." if cur != "unknown" else "mreža neprepoznata")
+                  tr("pinovi naučeni na trenutnoj mreži ({0})").format(cur),
+                  tr("Ako ovo NIJE tvoja mreža od povjerenja, pinovi ne vrijede ništa: "
+                     "naučeni su možda od presretača. Obriši ih i ponovi sa mreže kojoj "
+                     "vjeruješ.") if cur != "unknown" else tr("mreža neprepoznata"))
     else:
-        p.add("pins", WARN, "nijedan TLS pin još nije naučen",
-              "Uradi prvi kontakt sa mrežom kojoj vjeruješ (kuća), PRIJE puta. "
-              "Trust-on-first-use vrijedi tačno onoliko koliko vrijedi prva mreža.")
+        p.add("pins", WARN, tr("nijedan TLS pin još nije naučen"),
+              tr("Uradi prvi kontakt sa mrežom kojoj vjeruješ (kuća), PRIJE puta. "
+                 "Trust-on-first-use vrijedi tačno onoliko koliko vrijedi prva mreža."))
 
     return p
 
 
 def summary_line() -> str:
+    from ..i18n import tr
     p = check()
     n_high = len(p.by_level(HIGH))
     n_warn = len(p.by_level(WARN))
     if n_high:
-        return f"⛔ {n_high} ozbiljnih nalaza, {n_warn} upozorenja"
+        return tr("⛔ {0} ozbiljnih nalaza, {1} upozorenja").format(n_high, n_warn)
     if n_warn:
-        return f"⚠ {n_warn} upozorenja"
-    return "✅ host izgleda uredno"
+        return tr("⚠ {0} upozorenja").format(n_warn)
+    return tr("✅ host izgleda uredno")

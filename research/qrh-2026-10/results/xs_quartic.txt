@@ -1,0 +1,9 @@
+deg in b of numerator: 1  deg d: 2  deg l: 3
+check [-1.469367939e-38, -9.183549616e-41, -9.403954807e-38]
+N1 (b-coefficient) = 4*(81*delta**2*ell**2 - 270*delta**2*ell + 222*delta**2 - 189*delta*ell**2 + 603*delta*ell - 475*delta + 75*ell**2 - 230*ell + 175)
+cond b-flat: [81*delta**2*ell**2 - 270*delta**2*ell + 222*delta**2 - 189*delta*ell**2 + 603*delta*ell - 475*delta + 75*ell**2 - 230*ell + 175] 
+ cond d-stationary factor degs: [(2, 4)]
+POLY in B (deg 4): 133488*B**4 - 376596*B**3 + 384534*B**2 - 167541*B + 26231
+roots in (0.8,0.95): [0.874886647039964130944614000530]
+POLY in ell: 927*ell**4 - 3135*ell**3 + 2433*ell**2 + 275*ell - 100
+b-flat condition solved for delta at optimum: 0.4693448586981430674935998

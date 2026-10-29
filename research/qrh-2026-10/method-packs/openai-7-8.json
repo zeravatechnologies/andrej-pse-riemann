@@ -1,0 +1,10 @@
+{
+  "name": "openai-7-8",
+  "family": "line",
+  "ell": 0.16666666666666666,
+  "source": "openai:7-8 (30.09.2026)",
+  "claimed_B": 0.875,
+  "tol": 1e-9,
+  "note": "OpenAI 7/8 je tacka l=1/6 na pravoj B(l)=11/12-l/4 (B=7/8=0.875). Visoka strana ima rezervu -E*=7/30672. Nema razrjesiv id -> provjerava se kao tacka prave.",
+  "tags": ["qrh", "openai", "line"]
+}

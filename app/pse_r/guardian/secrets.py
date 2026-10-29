@@ -47,6 +47,8 @@ class SecretStore:
     def __init__(self, path: Optional[Path] = None):
         self.path = Path(path or config.SECRETS_FILE)
         self._data: dict[str, str] = {}
+        self._locked: set[str] = set()      # kill switch: names the app may not read
+        self._had: set[str] = set()         # locked names that had a value
         self.load()
 
     def load(self) -> dict[str, str]:
@@ -56,6 +58,9 @@ class SecretStore:
                 self._data = json.loads(self.path.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, OSError):
                 self._data = {}
+        for n in self._locked:                  # a reload must not bring them back
+            if self._data.pop(n, None):
+                self._had.add(n)
         return dict(self._data)
 
     def _warn_if_loose(self) -> None:
@@ -89,7 +94,42 @@ class SecretStore:
         _refresh_known_values()
 
     def get(self, name: str) -> str:
+        if name in self._locked:
+            return ""
         return self._data.get(name, "") or os.environ.get(name, "")
+
+    # ---- kill switch (round 3, item 12) ------------------------------- #
+    def lock(self, names) -> None:
+        """Take these keys out of the app's memory (file untouched)."""
+        for n in names:
+            self._locked.add(n)
+            if self._data.pop(n, None) or os.environ.get(n):
+                self._had.add(n)
+        _refresh_known_values()
+
+    def forget(self, names) -> None:
+        """Remove these keys from secrets.json for good."""
+        disk = {}
+        if self.path.exists():
+            try:
+                disk = json.loads(self.path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                disk = {}
+        for n in names:
+            disk.pop(n, None)
+        keep = self._data
+        self._data = disk
+        self.save()
+        self._data = {k: v for k, v in keep.items() if k not in set(names)}
+
+    def unlock(self) -> None:
+        self._locked.clear()
+        self._had.clear()
+        self.load()
+        _refresh_known_values()
+
+    def was_locked(self, name: str) -> bool:
+        return name in self._had
 
     def set(self, name: str, value: str) -> None:
         if value:
@@ -125,7 +165,10 @@ def _refresh_known_values() -> None:
     vals: list[str] = []
     if _STORE is not None:
         vals.extend(_STORE.values())
+    locked = _STORE._locked if _STORE is not None else set()
     for k, v in os.environ.items():
+        if k in locked:
+            continue
         if any(t in k.upper() for t in ("API_KEY", "TOKEN", "SECRET")) and len(v) >= 16:
             vals.append(v)
     # longest first so a prefix does not shadow a longer key

@@ -208,6 +208,7 @@ _SOURCE_PATTERNS = [
     re.compile(r"^mathoverflow:\d+$", re.I),
     re.compile(r"^wikipedia:\S+$", re.I),
     re.compile(r"^book:.+,\s*(p\.|pp\.|ch\.|§)\s*\S+", re.I),   # book:Edwards 1974, ch. 6
+    re.compile(r"^lean:\S+$", re.I),                            # lean:Mathlib.NumberTheory... (machine-checked)
     re.compile(r"^url:https://\S+$", re.I),
 ]
 
@@ -225,4 +226,5 @@ def is_resolvable_source(ref: str) -> bool:
 def source_hint() -> str:
     return ("dozvoljeni oblici izvora: arxiv:2405.12345 · doi:10.xxxx/yyy · "
             "lmfdb:... · oeis:A000040 · openalex:W... · mathoverflow:12345 · "
-            "wikipedia:Riemann_zeta_function · book:Edwards 1974, ch. 6 · url:https://...")
+            "wikipedia:Riemann_zeta_function · book:Edwards 1974, ch. 6 · "
+            "lean:Mathlib.NumberTheory... · url:https://...")

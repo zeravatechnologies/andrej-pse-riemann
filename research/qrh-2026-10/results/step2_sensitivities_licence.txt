@@ -1,0 +1,50 @@
+== STEP 2: points, sensitivities, walls ==
+Liu: B=0.874957019420 l=0.166838589 b=0.123406 k=0.749914039
+   walls (positive=ok): {'6kl-3/4': np.float64(0.00069), '1/(6k)-l/h': np.float64(0.01677), 'lx-l': np.float64(0.18804), 'ly-l-11b/6': np.float64(0.0852), '1/2-ly': np.float64(0.02172), 'ly-h/2': np.float64(0.0723), '1/5-l': np.float64(0.03316), 'B-0.87': np.float64(0.00496), '(1+k)/2-B': np.float64(0.0)}
+XS*: B=0.874886647040 l=0.167120079 b=0.086535 k=0.749773294
+   walls (positive=ok): {'6kl-3/4': np.float64(0.00181), '1/(6k)-l/h': np.float64(0.0118), 'lx-l': np.float64(0.20605), 'ly-l-11b/6': np.float64(0.13394), '1/2-ly': np.float64(0.04029), 'ly-h/2': np.float64(0.06273), '1/5-l': np.float64(0.03288), 'B-0.87': np.float64(0.00489), '(1+k)/2-B': np.float64(0.0)}
+Liu: dB/dkappa=0.000586 -> licence-iteration contraction 2dB/dk=0.001172
+XS: dB/dkappa=0.001510 -> licence-iteration contraction 2dB/dk=0.003021
+== licence iteration from kappa=3/4 (transition d) ==
+Liu ['0.874957069799', '0.874957019479', '0.874957019420', '0.874957019420', '0.874957019420']  gaps ['5.03e-08', '5.90e-11', '6.92e-14', '0.00e+00']
+XS ['0.874886989358', '0.874886648074', '0.874886647043', '0.874886647040', '0.874886647040']  gaps ['3.41e-07', '1.03e-09', '3.11e-12', '9.44e-15']
+== STEP 3: candidate transforms ==
+T_struct (XS structure, w=0): B=0.8651155210  vs Liu 0.8749570194  -> structure change alone gives -9.84e-03
+T_amp (w 0->1/4 inside XS structure): +9.77e-03
+-- extend T_amp: continuous w, and iterated quarter-recovery w_n=1-(3/4)^n --
+ w=0.0000: B*=0.86511552 l=0.20620 b=0.0000 k=0.73023  broken walls: ['1/(6k)-l/h', 'ly-h/2', '1/5-l', 'B-0.87', '(1+k)/2-B']
+ w=0.2500: B*=0.87488665 l=0.16712 b=0.0865 k=0.74977  broken walls: ['(1+k)/2-B']
+ w=0.4375: B*=0.89170541 l=0.09985 b=0.3000 k=0.78341  broken walls: ['6kl-3/4', 'ly-l-11b/6', '1/2-ly', '(1+k)/2-B']
+ w=0.5781: B*=0.90874679 l=0.03168 b=0.3000 k=0.81749  broken walls: ['6kl-3/4', '1/2-ly', '(1+k)/2-B']
+ w 0.6835 fail f(a) and f(b) must have different signs
+ w 0.8 fail f(a) and f(b) must have different signs
+ w 0.9 fail f(a) and f(b) must have different signs
+ w 1.0 fail f(a) and f(b) must have different signs
+-- extend T_interp: E_Liu + t*(E_xs - E_Liu) --
+ t=0: B*=0.87495702 l=0.16684 b=0.1234  broken walls: ['(1+k)/2-B']
+ t=1: B*=0.87488665 l=0.16712 b=0.0865  broken walls: ['(1+k)/2-B']
+ t=2: B*=0.87475722 l=0.16764 b=0.0209  broken walls: ['(1+k)/2-B']
+ t=3: B*=0.87631091 l=0.16142 b=0.0000  broken walls: ['6kl-3/4', '(1+k)/2-B']
+Traceback (most recent call last):
+  File "scratch/analysis/step23.py", line 54, in <module>
+    B,l,b,k=opt(Ef,1/8,iters=6); W=walls(B,l,b,k); bad=[a for a,v in W.items() if v<=0]
+            ^^^^^^^^^^^^^^^^^^^
+  File "scratch/analysis/step23.py", line 15, in opt
+    r=minimize_scalar(lambda b:-ls(b),bounds=(0.0,0.3),method='bounded',options={'xatol':1e-10}); b,l=r.x,-r.fun
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "scratch/venv/lib/python3.12/site-packages/scipy/optimize/_minimize.py", line 1027, in minimize_scalar
+    res = _minimize_scalar_bounded(fun, bounds, args, **options)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "scratch/venv/lib/python3.12/site-packages/scipy/optimize/_optimize.py", line 2336, in _minimize_scalar_bounded
+    fx = func(x, *args)
+         ^^^^^^^^^^^^^^
+  File "scratch/analysis/step23.py", line 15, in <lambda>
+    r=minimize_scalar(lambda b:-ls(b),bounds=(0.0,0.3),method='bounded',options={'xatol':1e-10}); b,l=r.x,-r.fun
+                                ^^^^^
+  File "scratch/analysis/step23.py", line 13, in <lambda>
+    ls=lambda b: brentq(lambda l: vmax(Ef,b,l,k,dlo,xs),0.0,0.6,xtol=1e-14)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "scratch/venv/lib/python3.12/site-packages/scipy/optimize/_zeros_py.py", line 858, in brentq
+    r = _zeros._brentq(f, a, b, xtol, rtol, maxiter, args, full_output, disp)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: f(a) and f(b) must have different signs

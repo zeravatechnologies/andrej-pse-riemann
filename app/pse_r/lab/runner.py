@@ -30,7 +30,6 @@ import mpmath as mp
 
 from .. import config
 from ..core import journal as J
-from ..core import theta as TH
 from ..vault.card import Card, COMPUTED
 from ..vault.gate import Verdict, gate
 from . import experiments as EX
@@ -51,11 +50,20 @@ def _script_source(exp: EX.Experiment) -> str:
         fn = inspect.getsource(exp.run)
     except (OSError, TypeError):
         fn = f"# (source unavailable for {exp.run})\n"
-    try:
-        zsrc = inspect.getsource(Z)
-    except (OSError, TypeError):
-        zsrc = ""
-    return header + "# ---- zeta.py ----\n" + zsrc + "\n\n# ---- experiment ----\n" + fn
+    # QRH experiments depend on the method explorer, not on zeta.py — record the
+    # module that actually produced the number, so the run is truly reproducible.
+    if exp.key.startswith("qrh_"):
+        try:
+            from ..methods import core as MC
+            dep = "# ---- methods/core.py ----\n" + inspect.getsource(MC)
+        except (OSError, TypeError, ImportError):
+            dep = ""
+    else:
+        try:
+            dep = "# ---- zeta.py ----\n" + inspect.getsource(Z)
+        except (OSError, TypeError):
+            dep = ""
+    return header + dep + "\n\n# ---- experiment ----\n" + fn
 
 
 def validate_params(exp: EX.Experiment, params: dict) -> dict:
@@ -119,6 +127,9 @@ def run(key: str, params: Optional[dict] = None, make_card: bool = True
         "run_id": run_id, "experiment": key, "title": exp.title,
         "params": p, "numbers": res.numbers, "reading": res.reading,
         "warnings": res.warnings, "plots": png_paths,
+        # the specs too, so the Lab tab can redraw them interactively (item 29, step 6);
+        # the PNGs stay — cards link to them and "Sačuvaj PNG" is always there
+        "plot_specs": list(res.plots),
         "elapsed_s": round(elapsed, 3),
         "script_sha256": sha,
         "mpmath": mp.__version__, "python": platform.python_version(),
@@ -129,8 +140,6 @@ def run(key: str, params: Optional[dict] = None, make_card: bool = True
     (run_dir / "result.json").write_text(
         json.dumps(record, indent=1, default=str), encoding="utf-8")
 
-    # A lab run is self-directed work — it is the app producing its own truth.
-    TH.record("lab_run", 1.0, source=f"lab:{key}", note=run_id)
     J.log(J.LAB, "lab",
           {"experiment": key, "params": p, "numbers": res.numbers,
            "elapsed_s": record["elapsed_s"], "sha": sha[:16],

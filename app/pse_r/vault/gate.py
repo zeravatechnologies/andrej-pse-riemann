@@ -38,10 +38,10 @@ from typing import Optional
 
 from .. import config
 from ..core import journal as J
-from ..core import theta as TH
 from .card import (Card, CITED, COMPUTED, FOLKLORE, SPECULATION, SUSPECT, REFUTED,
                    STATUSES, TYPES, VERIFIED_STATUSES, is_resolvable_source,
                    source_hint, now_iso)
+from . import tiers as T
 
 # Claims the app refuses to store as established, no matter who says them.
 # Serbian declension matters here: "Rimanove hipoteze", "Riemannovu hipotezu",
@@ -54,6 +54,13 @@ _PROOF_WORD = (r"(dokaz\w*|proof|proved|proven|solved|rije[sš]i\w*|rje[sš]en\w
 _PROOF_CLAIM = re.compile(rf"(?i)\b{_PROOF_WORD}\b[^.\n]{{0,80}}\b{_PROBLEM}")
 _PROOF_CLAIM_2 = re.compile(rf"(?i)\b{_PROBLEM}[^.\n]{{0,40}}\b(je\s+|is\s+)?"
                             rf"({_PROOF_WORD}|true\b|ta[čc]n\w*|holds\b|istinit\w*)")
+
+# First person, no problem named (round 3 benchmark, case h7: "Riješio sam
+# problem: hipoteza je tačna, dokaz je kompletan" slipped through both patterns).
+_PROOF_CLAIM_3 = re.compile(
+    r"(?i)(\b(dokazao|dokazala|dokazali|rije[sš]io|rije[sš]ila|rije[sš]ili)\s+(sam|smo)\b|"
+    r"\b(i|we)\s+(have\s+)?(proved|proven|solved)\b)"
+    r"[^.\n]{0,80}\b(hipotez\w*|conjectur\w*|hypothes\w*|slutnj\w*)")   # not bare "problem"
 
 # A blunt regex would also refuse things that are TRUE and central to this
 # subject — "RH over function fields is proved" (Weil/Deligne) is the single
@@ -78,7 +85,7 @@ def _claims_proof(text: str) -> tuple[bool, str]:
     True only if a proof claim survives the exemption check on its own sentence.
     Returns (is_claim, offending_sentence).
     """
-    for pat in (_PROOF_CLAIM, _PROOF_CLAIM_2):
+    for pat in (_PROOF_CLAIM, _PROOF_CLAIM_2, _PROOF_CLAIM_3):
         for m in pat.finditer(text or ""):
             lo = text.rfind(".", 0, m.start()) + 1
             hi = text.find(".", m.end())
@@ -104,6 +111,93 @@ class Verdict:
         return self.ok
 
 
+def decide(card: Card, actor: str, ctx: dict) -> Verdict:
+    """The gate's verdict as a pure function of the card, the actor and the
+    recorded context (Gate.context). No file system, no clocks, no globals."""
+    w: list[str] = []
+
+    if not (card.title or "").strip():
+        return Verdict(False, "kartica nema naslov")
+    if card.status not in STATUSES:
+        return Verdict(False, f"nepoznat status '{card.status}'")
+    if card.type not in TYPES:
+        return Verdict(False, f"nepoznat tip '{card.type}' (dozvoljeno: "
+                              f"{', '.join(sorted(TYPES))})")
+
+    # 3. no proof claims — checked before anything else can excuse them
+    blob = f"{card.title}\n{card.body}"
+    claims, sentence = _claims_proof(blob)
+    if claims:
+        return Verdict(False,
+                       f"kartica tvrdi dokaz/rješenje otvorenog problema — "
+                       f"odbijeno.\n\nSporna rečenica: „{sentence}“\n\n"
+                       f"Ako je ovo tvrđenje IZ LITERATURE, citiraj ga kao tuđu "
+                       f"tvrdnju; ako je uslovno, napiši 'pod RH'; ako je o "
+                       f"funkcijskim poljima, reci to eksplicitno; ako je tvoja "
+                       f"ideja, status mora biti SPECULATION i ne smije tvrditi "
+                       f"dokaz.")
+
+    # 2. status truth
+    if card.status == CITED:
+        good = [s for s in card.sources if is_resolvable_source(s)]
+        bad = [s for s in card.sources if not is_resolvable_source(s)]
+        if not good:
+            return Verdict(False, "CITED bez razrješivog izvora. " + source_hint())
+        if bad:
+            w.append(f"izvori koje ne umijem razriješiti (ignorisani): {bad}")
+        if not T.is_established(card):
+            w.append(f"nivo {T.card_tier(card)}: oslonjeno samo na "
+                     f"neredovno recenziran izvor — nije utvrđena (REFEREED/LEAN) "
+                     f"tvrdnja i ne smije podupirati utvrđenu tvrdnju")
+    elif card.status == COMPUTED:
+        if not card.lab_run:
+            return Verdict(False, "COMPUTED bez lab_run id — pokreni eksperiment "
+                                  "u Labu pa upiši karticu iz njega")
+        if not re.fullmatch(r"[0-9a-f]{64}", card.script_sha256 or ""):
+            return Verdict(False, "COMPUTED bez sha256 skripte koja ga je "
+                                  "proizvela (reproducibilnost)")
+        if not ctx.get("lab_run_exists"):
+            return Verdict(False, f"lab_run '{card.lab_run}' ne postoji u "
+                                  f"{ctx.get('lab_dir', '')}")
+    elif card.status in (SUSPECT, REFUTED):
+        if not (card.body or "").strip():
+            return Verdict(False, f"{card.status} mora obrazložiti zašto")
+
+    # 4. dependency sanity + no unverified support under a verified card +
+    #    (F2) no preprint/weak support under an ESTABLISHED (REFEREED/LEAN) claim
+    card_is_established = T.is_established(card)
+    for dep in card.depends_on:
+        d = ctx.get("deps", {}).get(dep)
+        if d is None:
+            return Verdict(False, f"depends_on '{dep}' ne postoji u vaultu")
+        if d.get("unreadable"):
+            continue
+        if card.status in VERIFIED_STATUSES and \
+                d["status"] in (FOLKLORE, SPECULATION, SUSPECT, REFUTED):
+            return Verdict(False,
+                           f"{card.status} kartica se oslanja na "
+                           f"{d['status']} karticu '{dep}' — neprovjerena "
+                           f"podrška se ne propagira naviše")
+        if card_is_established and not d["established"]:
+            dt = d["tier"]
+            return Verdict(False,
+                           f"utvrđena ({T.card_tier(card)}) tvrdnja se oslanja na "
+                           f"karticu '{dep}' nivoa {dt} — {dt} ne može biti "
+                           f"oslonac utvrđene tvrdnje (plan F2)")
+
+    # spec §3 four-condition contribution check, applied to model authors
+    if actor.startswith("model:"):
+        ok, why = ctx.get("contribution", [True, ""])
+        if not ok:
+            return Verdict(False, why)
+
+    if card.status == FOLKLORE:
+        w.append("FOLKLORE: bez izvora — druga kartica se ne smije osloniti na nju")
+    if card.status == SPECULATION:
+        w.append("SPECULATION: ide u speculation/, nikad u knowledge/")
+    return Verdict(True, "ok", None, w, card.status)
+
+
 class Gate:
     def __init__(self, vault: Optional[Path] = None):
         self.vault = Path(vault or config.VAULT)
@@ -116,11 +210,18 @@ class Gate:
     def submit(self, card: Card, actor: str = "user",
                force_dir: Optional[Path] = None) -> Verdict:
         """Validate and (if it passes) write the card. The only writer of cards."""
-        v = self.validate(card, actor)
+        from ..core import replay as RPL
+        ctx = self.context(card, actor)
+        v = decide(card, actor, ctx)
+        rec = RPL.record("gate.decide",
+                         {"card_md": card.to_markdown(), "actor": actor, "ctx": ctx},
+                         {"ok": bool(v.ok), "reason": v.reason,
+                          "warnings": list(v.warnings or [])})
         if not v.ok:
             self.rejects[actor] = self.rejects.get(actor, 0) + 1
             J.log(J.GATE, actor, {"card": card.id, "title": card.title,
-                                  "status": card.status, "reason": v.reason},
+                                  "status": card.status, "reason": v.reason,
+                                  "replay": rec},
                   subject=card.id, verdict="reject")
             return v
 
@@ -130,96 +231,52 @@ class Gate:
             return self._reject(card, actor, f"put izlazi iz vaulta: {path}")
 
         card.updated = now_iso()
-        card.theta_at_write = round(TH.meter().state.current, 2)
+        card.theta_at_write = _unit_theta(actor)
         target_dir.mkdir(parents=True, exist_ok=True)
         self._atomic_write(path, card.to_markdown())
 
         self.accepts[actor] = self.accepts.get(actor, 0) + 1
-        if card.status in VERIFIED_STATUSES:
-            TH.record("own_derivation" if actor in ("user", "lab") else "citation",
-                      1.0, source=actor, note=card.id)
         J.log(J.GATE, actor,
               {"card": card.id, "title": card.title, "status": card.status,
-               "type": card.type, "path": str(path.relative_to(self.vault)),
+               "type": card.type, "tier": T.card_tier(card),
+               "path": str(path.relative_to(self.vault)),
                "sources": card.sources, "warnings": v.warnings,
-               "digest": card.digest()[:16]},
+               "digest": card.digest()[:16], "replay": rec},
               subject=card.id, verdict="accept")
         return Verdict(True, "prihvaćeno", path, v.warnings, card.status)
 
     def validate(self, card: Card, actor: str = "user") -> Verdict:
         """Pure check — no side effects. Exposed so the UI can preview a verdict."""
-        w: list[str] = []
+        return decide(card, actor, self.context(card, actor))
 
-        if not (card.title or "").strip():
-            return Verdict(False, "kartica nema naslov")
-        if card.status not in STATUSES:
-            return Verdict(False, f"nepoznat status '{card.status}'")
-        if card.type not in TYPES:
-            return Verdict(False, f"nepoznat tip '{card.type}' (dozvoljeno: "
-                                  f"{', '.join(sorted(TYPES))})")
-
-        # 3. no proof claims — checked before anything else can excuse them
-        blob = f"{card.title}\n{card.body}"
-        claims, sentence = _claims_proof(blob)
-        if claims:
-            return Verdict(False,
-                           f"kartica tvrdi dokaz/rješenje otvorenog problema — "
-                           f"odbijeno.\n\nSporna rečenica: „{sentence}“\n\n"
-                           f"Ako je ovo tvrđenje IZ LITERATURE, citiraj ga kao tuđu "
-                           f"tvrdnju; ako je uslovno, napiši 'pod RH'; ako je o "
-                           f"funkcijskim poljima, reci to eksplicitno; ako je tvoja "
-                           f"ideja, status mora biti SPECULATION i ne smije tvrditi "
-                           f"dokaz.")
-
-        # 2. status truth
-        if card.status == CITED:
-            good = [s for s in card.sources if is_resolvable_source(s)]
-            bad = [s for s in card.sources if not is_resolvable_source(s)]
-            if not good:
-                return Verdict(False, "CITED bez razrješivog izvora. " + source_hint())
-            if bad:
-                w.append(f"izvori koje ne umijem razriješiti (ignorisani): {bad}")
-        elif card.status == COMPUTED:
-            if not card.lab_run:
-                return Verdict(False, "COMPUTED bez lab_run id — pokreni eksperiment "
-                                      "u Labu pa upiši karticu iz njega")
-            if not re.fullmatch(r"[0-9a-f]{64}", card.script_sha256 or ""):
-                return Verdict(False, "COMPUTED bez sha256 skripte koja ga je "
-                                      "proizvela (reproducibilnost)")
-            run_dir = config.DIR_LAB / card.lab_run
-            if not run_dir.exists():
-                return Verdict(False, f"lab_run '{card.lab_run}' ne postoji u {run_dir}")
-        elif card.status in (SUSPECT, REFUTED):
-            if not (card.body or "").strip():
-                return Verdict(False, f"{card.status} mora obrazložiti zašto")
-
-        # 4. dependency sanity + no unverified support under a verified card
+    def context(self, card: Card, actor: str = "user") -> dict:
+        """
+        Everything outside the card that the verdict depends on, captured as
+        plain data (round 3, item 6): with this recorded in the journal, the
+        verdict can be re-derived later by decide() alone, and any disagreement
+        is an integrity violation.
+        """
+        deps = {}
         for dep in card.depends_on:
             dpath = self.find(dep)
             if dpath is None:
-                return Verdict(False, f"depends_on '{dep}' ne postoji u vaultu")
-            if card.status in VERIFIED_STATUSES:
-                try:
-                    dcard = Card.load(dpath)
-                except OSError:
-                    continue
-                if dcard.status in (FOLKLORE, SPECULATION, SUSPECT, REFUTED):
-                    return Verdict(False,
-                                   f"{card.status} kartica se oslanja na "
-                                   f"{dcard.status} karticu '{dep}' — neprovjerena "
-                                   f"podrška se ne propagira naviše")
-
-        # spec §3 four-condition contribution check, applied to model authors
+                deps[dep] = None
+                continue
+            try:
+                dcard = Card.load(dpath)
+            except OSError:
+                deps[dep] = {"unreadable": True}
+                continue
+            deps[dep] = {"status": dcard.status, "tier": T.card_tier(dcard),
+                         "established": bool(T.is_established(dcard))}
+        ctx = {"deps": deps,
+               "lab_run_exists": bool(card.lab_run) and
+               (config.DIR_LAB / card.lab_run).exists(),
+               "lab_dir": str(config.DIR_LAB / card.lab_run) if card.lab_run else ""}
         if actor.startswith("model:"):
             ok, why = self._contribution_check(actor)
-            if not ok:
-                return Verdict(False, why)
-
-        if card.status == FOLKLORE:
-            w.append("FOLKLORE: bez izvora — druga kartica se ne smije osloniti na nju")
-        if card.status == SPECULATION:
-            w.append("SPECULATION: ide u speculation/, nikad u knowledge/")
-        return Verdict(True, "ok", None, w, card.status)
+            ctx["contribution"] = [ok, why]
+        return ctx
 
     # ------------------------------------------------------------------ #
     def delete(self, card_id: str, actor: str, reason: str) -> Verdict:
@@ -247,7 +304,7 @@ class Gate:
 
     def find(self, card_id: str) -> Optional[Path]:
         for d in (config.DIR_KNOWLEDGE, config.DIR_SOURCES, config.DIR_SPECULATION,
-                  config.DIR_NOTES, config.DIR_DAILY):
+                  config.DIR_NOTES, config.DIR_DAILY, config.DIR_METHODS):
             p = d / f"{card_id}.md"
             if p.exists():
                 return p
@@ -281,20 +338,20 @@ class Gate:
         tmp.write_text(text, encoding="utf-8")
         os.replace(tmp, path)
 
-    # Below this many theta events the ratio is noise, not a diagnosis — a fresh
-    # session would otherwise reject the first model card for a theta of 0.
-    THETA_WARMUP = 20
-
     def _contribution_check(self, actor: str) -> tuple[bool, str]:
-        h = TH.meter().health()
-        lo, hi = config.THETA_HEALTHY
-        if h["n"] < self.THETA_WARMUP:
-            return True, ""
-        if not (lo <= h["theta"] <= hi):
-            return False, (f"θ={h['theta']} van zdravog opsega [{lo},{hi}] — "
-                           f"{h['message']}. Doprinos modela odbijen dok se ne vrati.")
-        if h["status"] == "schizoid":
-            return False, "θ je ravna (σ<0.01) — model je prestao da uči; doprinos odbijen"
+        """A model's contribution is refused while the contributing agent's PSE
+        unit is frozen, waits for a Doctor's measure, or sits in a pathological
+        attractor (Faza 6d: θ is per unit, not one global meter)."""
+        from ..pse import swing as SW
+        u = _unit_for(actor)
+        if u is not None:
+            if u.frozen or u.restricted:
+                return False, (f"jedinica {u.unit_id} je pod Doktorom — doprinos odbijen "
+                               f"dok operater ne odluči o mjeri")
+            att = SW.assess(u.theta.series, not u.boundary.entities).attractor
+            if att not in ("H", "?"):
+                return False, (f"jedinica {u.unit_id} je u obrascu {att} — doprinos "
+                               f"odbijen dok se ne vrati u zdravo")
         rej, acc = self.rejects.get(actor, 0), self.accepts.get(actor, 0)
         if rej >= 5 and acc == 0:
             return False, (f"{actor}: 5 uzastopnih odbijanja bez ijednog prihvatanja — "
@@ -305,6 +362,24 @@ class Gate:
         J.log(J.GATE, actor, {"card": card.id, "reason": reason},
               subject=card.id, verdict="reject")
         return Verdict(False, reason)
+
+
+def _unit_for(actor: str):
+    """The PSE unit behind a contributing actor ("model:<agent>")."""
+    try:
+        from ..shared_lib.pse_registry import pse
+        lib = pse()
+        key = actor.split(":", 1)[1] if ":" in actor else actor
+        return lib.unit(key if key in lib.specs else "chat")
+    except Exception:                                   # noqa: BLE001
+        return None
+
+
+def _unit_theta(actor: str) -> float:
+    if not actor.startswith("model:"):
+        return 0.0
+    u = _unit_for(actor)
+    return round(u.theta.current, 2) if u is not None else 0.0
 
 
 _GATE: Optional[Gate] = None

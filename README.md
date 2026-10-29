@@ -9,6 +9,8 @@ lokalni venv (`app/.venv`) — ništa sistemski.
 - **Prvi put:** `cd app && ./setup.sh` (jednom, kod kuće, treba internet)
 - **Pokretanje:** `cd app && ./run.sh`
 - **Provjera:** `cd app && ./run.sh --selftest`
+- **Plan razvoja v2:** [docs/PLAN.md](docs/PLAN.md) · napredak: [docs/WORKLOG.md](docs/WORKLOG.md)
+- **Istraživanje QRH (7/8):** [research/qrh-2026-10/REPORT.md](research/qrh-2026-10/REPORT.md)
 
 Četiri stvari koje ovo razlikuju od bilježnice sa chatom:
 

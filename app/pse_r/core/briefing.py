@@ -21,7 +21,6 @@ from .. import config
 from ..vault import store as VS
 from ..vault.card import COMPUTED, CITED, FOLKLORE, SPECULATION, SUSPECT
 from . import journal as J
-from . import theta as TH
 
 PLAN = config.VAULT / "PLAN.md"
 QUESTIONS = config.VAULT / "OPEN_QUESTIONS.md"
@@ -96,68 +95,80 @@ def yesterday_summary(hours: float = 30.0) -> dict:
     }
 
 
+def _swarm() -> dict:
+    """The swarm's health in one line (Faza 6d: θ is per unit)."""
+    from ..shared_lib.pse_registry import pse
+    sw = pse().swarm()
+    from ..i18n import tr
+    msg = {"healthy": tr("svi zdravi"),
+           "sick": tr("{0} van zdravog obrasca").format(sw["sick"]),
+           "measure": tr("Doktorove mjere čekaju: {0}").format(sw["measures"]),
+           "frozen": tr("zamrznute: {0}").format(", ".join(sw["frozen"]))}[sw["status"]]
+    return {**sw, "message": msg}
+
+
 def briefing() -> str:
-    """The markdown shown on launch."""
+    """The markdown shown on launch (SR or EN, as the interface)."""
+    from ..i18n import tr
     y = yesterday_summary()
     st = VS.stats()
-    h = TH.meter().health()
+    h = _swarm()
     attention = VS.needs_attention()
     plan = _plan_today()
     q = _open_questions()
 
-    L = [f"# Dobro jutro — {date.today().isoformat()}", ""]
+    L = [tr("# Dobro jutro — {0}").format(date.today().isoformat()), ""]
 
     if y["lab_runs"] or y["cards_written"]:
-        L.append("## Juče")
+        L.append(tr("## Juče"))
         if y["lab_runs"]:
-            L.append(f"- Lab: {', '.join(sorted(set(y['lab_runs'])))}")
+            L.append(tr("- Lab: {0}").format(", ".join(sorted(set(y["lab_runs"])))))
         if y["cards_written"]:
             byst: dict = {}
             for s, _ in y["cards_written"]:
                 byst[s] = byst.get(s, 0) + 1
-            L.append("- Kartice: " + ", ".join(f"{v}× {k}" for k, v in byst.items()))
+            L.append(tr("- Kartice: {0}").format(", ".join(f"{v}× {k}" for k, v in byst.items())))
         if y["cards_rejected"]:
-            L.append(f"- Kapija je odbila {y['cards_rejected']} prijedloga")
+            L.append(tr("- Kapija je odbila {0} prijedloga").format(y["cards_rejected"]))
         if y["model_calls"]:
-            L.append(f"- {y['model_calls']} poziva modelu, ${y['usd']:.2f}")
+            L.append(tr("- {0} poziva modelu, ${1:.2f}").format(y["model_calls"], y["usd"]))
         if y["threats"]:
-            L.append(f"- ⚠ Guardian: {y['threats']} događaja — pogledaj tab")
+            L.append(tr("- ⚠ Guardian: {0} događaja — pogledaj tab").format(y["threats"]))
         L.append("")
     else:
-        L += ["## Juče", "- (ništa zabilježeno)", ""]
+        L += [tr("## Juče"), tr("- (ništa zabilježeno)"), ""]
 
-    L += ["## Stanje vaulta",
-          f"- {st.total} kartica: **{st.verified} provjerenih** "
-          f"({st.by_status.get(COMPUTED,0)} COMPUTED, "
-          f"{st.by_status.get(CITED,0)} CITED), "
-          f"{st.by_status.get(FOLKLORE,0)} FOLKLORE, "
-          f"{st.by_status.get(SPECULATION,0)} SPECULATION, "
-          f"{st.by_status.get(SUSPECT,0)} SUSPECT",
-          f"- Ravnoteža izvor/izvođenje: {h['theta']:.1f} — {h['message']}", ""]
+    L += [tr("## Stanje vaulta"),
+          tr("- {0} kartica: **{1} provjerenih** ({2} COMPUTED, {3} CITED), {4} FOLKLORE, "
+             "{5} SPECULATION, {6} SUSPECT").format(
+              st.total, st.verified, st.by_status.get(COMPUTED, 0), st.by_status.get(CITED, 0),
+              st.by_status.get(FOLKLORE, 0), st.by_status.get(SPECULATION, 0),
+              st.by_status.get(SUSPECT, 0)),
+          tr("- PSE roj: {0} jedinica, prosječan θ {1:.1f} — {2}").format(
+              h["units"], h["theta_mean"], h["message"]), ""]
 
     if attention:
-        L.append("## Traži pažnju")
+        L.append(tr("## Traži pažnju"))
         for c in attention[:6]:
-            why = ("skeptik je našao problem" if c.status == SUSPECT
-                   else "druge kartice se oslanjaju na nju, a nema izvor")
+            why = (tr("skeptik je našao problem") if c.status == SUSPECT
+                   else tr("druge kartice se oslanjaju na nju, a nema izvor"))
             L.append(f"- `{c.status}` **{c.title}** — {why} (`{c.id}`)")
         L.append("")
 
     if q:
-        L.append("## Otvorena pitanja")
+        L.append(tr("## Otvorena pitanja"))
         L += [f"- {x}" for x in q]
         L.append("")
 
     if plan:
-        L.append("## Plan kaže")
+        L.append(tr("## Plan kaže"))
         L += [f"- {x}" for x in plan[:3]]
         if len(plan) > 3:
-            L.append(f"- _(još {len(plan)-3} nedovršenih stavki u PLAN.md)_")
+            L.append(tr("- _(još {0} nedovršenih stavki u PLAN.md)_").format(len(plan) - 3))
         L.append("")
 
-    L += ["---",
-          "_Pravilo dana: bar jedan COMPUTED rezultat. Čitanje bez računanja "
-          "se ne broji._"]
+    L += ["---", tr("_Pravilo dana: bar jedan COMPUTED rezultat. Čitanje bez računanja "
+                    "se ne broji._")]
     return "\n".join(L)
 
 
@@ -201,12 +212,13 @@ def weekly_report(days: int = 7) -> str:
         elif e["kind"] == J.THREAT:
             s["threats"] += 1
 
+    from ..i18n import tr
     st = VS.stats()
-    h = TH.meter().health()
-    L = [f"# Izvještaj — posljednjih {days} dana",
-         f"_generisano {datetime.now().astimezone().isoformat(timespec='minutes')} "
-         f"iz journala; ne uređuj ručno_", "",
-         "| dan | lab | kartice | odbijeno | modeli | $ | prijetnje |",
+    h = _swarm()
+    L = [tr("# Izvještaj — posljednjih {0} dana").format(days),
+         tr("_generisano {0} iz journala; ne uređuj ručno_").format(
+             datetime.now().astimezone().isoformat(timespec="minutes")), "",
+         tr("| dan | lab | kartice | odbijeno | modeli | $ | prijetnje |"),
          "|---|---|---|---|---|---|---|"]
     for d in sorted(per_day):
         s = per_day[d]
@@ -214,27 +226,25 @@ def weekly_report(days: int = 7) -> str:
                  f"{s['model']} | {s['usd']:.2f} | {s['threats']} |")
     tot_lab = sum(s["lab"] for s in per_day.values())
     tot_usd = sum(s["usd"] for s in per_day.values())
-    L += ["", f"**Ukupno:** {tot_lab} lab pokretanja, "
-              f"{sum(s['cards'] for s in per_day.values())} kartica, "
-              f"${tot_usd:.2f}.", ""]
+    L += ["", tr("**Ukupno:** {0} lab pokretanja, {1} kartica, ${2:.2f}.").format(
+        tot_lab, sum(s["cards"] for s in per_day.values()), tot_usd), ""]
 
-    L += ["## Vault",
-          f"- {st.total} kartica, {st.verified} provjerenih, "
-          f"{st.unverified} neprovjerenih",
-          f"- po tipu: " + ", ".join(f"{v}× {k}" for k, v in
-                                     sorted(st.by_type.items())),
-          f"- ravnoteža izvor/izvođenje {h['theta']:.1f} (σ {h['sigma']:.3f}) — "
-          f"{h['message']}", ""]
+    L += [tr("## Vault"),
+          tr("- {0} kartica, {1} provjerenih, {2} neprovjerenih").format(
+              st.total, st.verified, st.unverified),
+          tr("- po tipu: {0}").format(", ".join(f"{v}× {k}" for k, v in sorted(st.by_type.items()))),
+          tr("- PSE roj: {0} jedinica, prosječan θ {1:.1f} — {2}").format(
+              h["units"], h["theta_mean"], h["message"]), ""]
 
     ok, bad = J.journal().verify_chain()
-    L += ["## Integritet",
-          f"- journal hash-lanac: " + ("✅ neprekinut" if ok else
-                                       f"⛔ PREKINUT na događaju {bad}"),
-          f"- ukupno događaja: {J.journal().count()}", ""]
+    L += [tr("## Integritet"),
+          tr("- journal hash-lanac: {0}").format(
+              tr("✅ neprekinut") if ok else tr("⛔ PREKINUT na događaju {0}").format(bad)),
+          tr("- ukupno događaja: {0}").format(J.journal().count()), ""]
 
     if tot_lab == 0:
-        L += ["> ⚠ Nijedno lab pokretanje ove nedjelje. Ako je vault rastao "
-              "samo od literature, ravnoteža ti je otišla na tuđu stranu.", ""]
+        L += [tr("> ⚠ Nijedno lab pokretanje ove nedjelje. Ako je vault rastao samo od "
+                 "literature, ravnoteža ti je otišla na tuđu stranu."), ""]
     return "\n".join(L)
 
 

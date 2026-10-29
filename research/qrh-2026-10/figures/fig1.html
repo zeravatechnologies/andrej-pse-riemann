@@ -1,0 +1,76 @@
+<!doctype html><html lang="sr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--text-primary:#0b0b0b;--text-secondary:#52514e;--text-muted:#898781;--surface-1:#f4f3ef;--border:rgba(11,11,11,.12);--b:#c3c2b7;--t:#52514e;--radius:8px;
+--bg-success:#e6f4e6;--text-success:#1d6b1d;--bg-warning:#fdf1d8;--text-warning:#7a5200}
+@media (prefers-color-scheme:dark){:root{--text-primary:#f0efec;--text-secondary:#c3c2b7;--surface-1:#1a1a19;--border:rgba(255,255,255,.12);--b:#383835;--t:#c3c2b7;--bg-success:#16301a;--text-success:#9fe1a0;--bg-warning:#3a2c10;--text-warning:#fac775}}
+body{font-family:system-ui,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;color:var(--text-primary);background:Canvas}
+.sr-only{position:absolute;left:-9999px}
+svg .t,svg .ts,svg .th{fill:var(--text-primary);font-family:system-ui,sans-serif}svg .ts{font-size:12px;fill:var(--text-secondary)}svg .th{font-size:14px;font-weight:500}
+svg .arr{stroke:var(--text-secondary);stroke-width:1.5;fill:none}
+svg .c-teal rect{fill:#E1F5EE;stroke:#0F6E56}svg .c-teal text{fill:#085041}svg .c-coral rect{fill:#FAECE7;stroke:#993C1D}svg .c-coral text{fill:#712B13}
+</style></head><body>
+<title>QRH granice — pregled</title>
+<h1 style="font-size:20px;font-weight:500">Slika 1 — granica bez nula: OpenAI 7/8, Liu, Xu–Sang</h1>
+<style>
+.lbl{font-size:13px;color:var(--text-secondary);margin:1.25rem 0 .5rem}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.mc{background:var(--surface-1);border-radius:var(--radius);padding:.75rem 1rem}
+.mc .k{font-size:12px;color:var(--text-secondary)}
+.mc .v{font-size:18px;font-weight:500;font-variant-numeric:tabular-nums}
+</style>
+<div class="lbl">1 · Gdje smo na traci (zone bez nula su desno od crte)</div>
+<svg width="100%" viewBox="0 0 680 110" role="img"><title>Kritična traka od 1/2 do 1</title><desc>RH na 1/2, OpenAI 7/8, 11/12, i 1</desc>
+<defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5"/></marker></defs>
+<line x1="80" y1="50" x2="620" y2="50" stroke="var(--b)" stroke-width="1"/>
+<rect x="485" y="40" width="135" height="20" fill="#1D9E75" opacity=".18"/>
+<line x1="80" y1="38" x2="80" y2="62" stroke="#E24B4A" stroke-width="2"/>
+<text class="ts" x="80" y="82" text-anchor="middle">1/2 (RH)</text>
+<line x1="485" y1="34" x2="485" y2="66" stroke="#1D9E75" stroke-width="2"/>
+<text class="th" x="485" y="26" text-anchor="middle">7/8</text>
+<line x1="530" y1="42" x2="530" y2="58" stroke="var(--t)" stroke-width="1"/>
+<text class="ts" x="530" y="82" text-anchor="middle">11/12</text>
+<line x1="620" y1="38" x2="620" y2="62" stroke="var(--t)" stroke-width="1"/>
+<text class="ts" x="620" y="82" text-anchor="middle">1</text>
+<text class="ts" x="282" y="100" text-anchor="middle">neistražen jaz 1/2 → 7/8: ovdje bi trebala nova ideja</text>
+</svg>
+<div class="lbl">2 · Zum na 0.87485 – 0.87502 (svaki korak lijevo = jača teorema)</div>
+<svg width="100%" viewBox="0 0 680 150" role="img"><title>Zum oko 7/8</title><desc>Liu, Xu–Sang B0 i B1, OpenAI</desc>
+<line x1="80" y1="70" x2="620" y2="70" stroke="var(--b)" stroke-width="1"/>
+<line x1="556" y1="56" x2="556" y2="84" stroke="#1D9E75" stroke-width="2"/>
+<text class="th" x="556" y="44" text-anchor="middle">OpenAI 0.875</text>
+<line x1="420" y1="56" x2="420" y2="84" stroke="#7F77DD" stroke-width="2"/>
+<text class="th" x="420" y="44" text-anchor="middle">Liu 0.874957</text>
+<line x1="199" y1="56" x2="199" y2="84" stroke="#D85A30" stroke-width="2"/>
+<line x1="196" y1="56" x2="196" y2="84" stroke="#D85A30" stroke-width="2" stroke-dasharray="3 2"/>
+<text class="th" x="198" y="44" text-anchor="middle">Xu–Sang B₀ ≈ B₁</text>
+<text class="ts" x="198" y="104" text-anchor="middle">B₀ = 0.8748875, B₁ = 0.8748867</text>
+<text class="ts" x="198" y="120" text-anchor="middle">razmak B₀−B₁ = 8·10⁻⁷ (≈2.5 px)</text>
+<text class="ts" x="488" y="104" text-anchor="middle">−4.3·10⁻⁵</text>
+<line x1="424" y1="92" x2="552" y2="92" stroke="#7F77DD" stroke-width=".5" marker-end="url(#a)"/>
+<text class="ts" x="80" y="140">0.87485</text><text class="ts" x="620" y="140" text-anchor="end">0.87502</text>
+</svg>
+<div class="lbl">3 · Liu: granica je korijen kubne f(ξ) = 1188ξ³ − 2160ξ² + 171ξ + 190</div>
+<div style="position:relative;width:100%;height:220px"><canvas id="cub" role="img" aria-label="Kubna funkcija Liu">f prelazi nulu na ξ≈0.388583</canvas></div>
+<div class="row" style="margin-top:10px">
+<div class="mc"><div class="k">korijen ξ u (0.38858, 0.38859)</div><div class="v">0.3885834</div></div>
+<div class="mc"><div class="k">B = (18ξ+7)/(18ξ+9)</div><div class="v">0.8749570</div></div>
+<div class="mc"><div class="k">optimalno samo</div><div class="v" style="font-size:14px">unutar sistema b, ℓ, κ</div></div>
+</div>
+<div class="lbl">4 · Xu–Sang: bootstrap u dvije faze (svaka granica "licencira" sljedeći κ)</div>
+<svg width="100%" viewBox="0 0 680 150" role="img"><title>Dvofazni bootstrap</title><desc>7/8 → B0 → B1</desc>
+<g class="c-teal"><rect x="40" y="30" width="150" height="56" rx="8" stroke-width=".5"/><text class="th" x="115" y="54" text-anchor="middle">β* ≤ 7/8</text><text class="ts" x="115" y="72" text-anchor="middle">ulaz iz OpenAI</text></g>
+<line x1="192" y1="58" x2="262" y2="58" class="arr" marker-end="url(#a)"/>
+<g class="c-coral"><rect x="265" y="30" width="150" height="56" rx="8" stroke-width=".5"/><text class="th" x="340" y="54" text-anchor="middle">B₀ = 69991/80000</text><text class="ts" x="340" y="72" text-anchor="middle">faza 1, izbor κ</text></g>
+<line x1="417" y1="58" x2="487" y2="58" class="arr" marker-end="url(#a)"/>
+<g class="c-coral"><rect x="490" y="30" width="150" height="56" rx="8" stroke-width=".5"/><text class="th" x="565" y="54" text-anchor="middle">B₁ ≈ 0.8748867</text><text class="ts" x="565" y="72" text-anchor="middle">faza 2, manji κ</text></g>
+<text class="ts" x="340" y="112" text-anchor="middle">uslov za svaki korak: β* ≤ (1+κ)/2; ograničenja 6κℓ &gt; 3/4, ℓ/h &lt; 1/(6κ)</text>
+<text class="ts" x="340" y="132" text-anchor="middle">dobitak: faza 1 = 1.1·10⁻⁴, faza 2 = 8·10⁻⁷ → iteracija se brzo gasi</text>
+</svg>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const xs=[],ys=[];for(let x=0.30;x<=0.4801;x+=0.005){xs.push(x.toFixed(3));ys.push(1188*x**3-2160*x**2+171*x+190)}
+new Chart(document.getElementById('cub'),{type:'line',data:{labels:xs,datasets:[{data:ys,borderColor:'#6250d6',borderWidth:2,pointRadius:0,tension:.3},{data:xs.map(()=>0),borderColor:'#898781',borderWidth:1,borderDash:[4,4],pointRadius:0}]},
+options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'ξ (nula oko 0.3886)'},ticks:{maxTicksLimit:8},grid:{display:false}}}}});
+</script>
+
+</body></html>

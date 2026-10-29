@@ -1,0 +1,11 @@
+geometry-only min B, dropping None        :  B=0.87004 at l=0.1865 b=0.097
+geometry-only min B, dropping 6kl>3/4     :  B=0.87004 at l=0.1865 b=0.097
+geometry-only min B, dropping l/h<1/(6k)  :  B=0.87004 at l=0.1865 b=0.000
+geometry-only min B, dropping lx>l        :  B=0.87004 at l=0.1865 b=0.097
+geometry-only min B, dropping ly-l>11b/6  :  B=0.87004 at l=0.1865 b=0.097
+geometry-only min B, dropping h/2<ly      :  B=0.87004 at l=0.1865 b=0.097
+geometry-only min B, dropping ly<1/2      :  B=0.87004 at l=0.1865 b=0.097
+geometry-only min B, dropping l<=1/5      :  B=0.87004 at l=0.1865 b=0.097
+geometry-only min B, dropping B>0.87      :  B=0.86717 at l=0.1980 b=0.151
+
+[exited with code 0]

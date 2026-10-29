@@ -1,23 +1,59 @@
+# --- Python ---
 .venv/
 venv/
-node_modules/
+env/
 __pycache__/
-*.pyc
-build/
-dist/
-target/
+*.py[cod]
 *.egg-info/
 .pytest_cache/
+# --- Node / Electron / Expo ---
+node_modules/
+dist/
+dist-electron/
+build/
+out/
+.expo/
+*-unpacked/
+linux-unpacked/
+AppImage/
+# --- Build artifacts & big binaries (NEVER on git) ---
+*.gguf
+*.deb
+*.AppImage
+*.whl
+wheels/
+*.so
+*.o
+*.a
+*.dylib
+# --- Secrets & local data ---
+.env
+.env.*
+!.env.example
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.jsonl
+.pse/
+# --- OS / misc ---
+.DS_Store
+*.log
+*~
+.~lock.*
+# --- from the GitHub copy (merged 2026-10-25) ---
+target/
 .mypy_cache/
 .ruff_cache/
-*.db
-*.sqlite*
-*.jsonl
 *-wal
 *-shm
 .state/
 audit/
-.pse/
 keys.json
 secrets.json
-.env
+*.sqlite*
+.worklock
+# --- local scratch (Claude temp files; never on git) ---
+scratch/
+app/pse_r/_edition.py
+*.exe

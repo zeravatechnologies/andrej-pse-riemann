@@ -1,0 +1,10 @@
+{
+  "name": "openai-11-12",
+  "family": "line",
+  "ell": 0.0,
+  "source": "openai:11-12 (05.10.2026)",
+  "claimed_B": 0.9166666666666666,
+  "tol": 1e-9,
+  "note": "OpenAI 11/12 je tacka l=0 na zajednickoj pravoj B(l)=11/12-l/4 (limes theta->0+). Nema razrjesiv id u nasem materijalu -> provjerava se kao tacka prave, ne uvozi kao kartica kroz vrata.",
+  "tags": ["qrh", "openai", "line"]
+}

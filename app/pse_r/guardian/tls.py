@@ -284,3 +284,61 @@ def check_pins(host: str, sock: ssl.SSLSocket, network: str = "",
            "interpretation": "neither public key nor issuer matches what we pinned"},
           subject=host, verdict="mismatch")
     return False, "mismatch", live
+
+
+# --------------------------------------------------------------------------- #
+# Re-scan (live test rc5, Andrej): pins are learned on first contact — the
+# operator is told so, and can learn them again from the menu if something
+# goes wrong. Only on a network he trusts.
+# --------------------------------------------------------------------------- #
+NOTICE_KEY = "tls_pins_notice_ack"
+
+
+def rescan_hosts() -> list[str]:
+    """Every host pinned so far plus the hosts of the chosen models."""
+    from ..llm import providers as P
+    from ..llm import selection as SEL
+    out = set(pins().hosts())
+    for mid in (SEL.get_main(), SEL.get_skeptic()):
+        pr = P.get(mid or "")
+        if pr and pr.host:
+            out.add(pr.host)
+    return sorted(out)
+
+
+def rescan(hosts: Optional[list] = None, probe=None) -> list[dict]:
+    """Forget each host's pins and learn them again NOW, through the egress (the
+    only network path; allowlist, kill switch, journal). A host that cannot be
+    reached keeps its old pins — a re-scan never leaves a host less protected.
+    Operator only; journalled. Returns [{host, state, ok, detail}]."""
+    from ..shared_lib import operator as OP
+    who = OP.require_operator()
+    if probe is None:
+        from .egress import egress
+        probe = egress().probe
+    from .unit import guardian
+    out = []
+    for host in (hosts if hosts is not None else rescan_hosts()):
+        old = dict(pins()._data.get(host, {}))
+        was_q = guardian().is_quarantined(host)
+        with pins()._lock:
+            pins()._data.pop(host, None)
+            pins().save()
+        if was_q:
+            guardian().release(host, "operater: ponovo snimljeni TLS pinovi")
+        try:
+            state = probe(host)
+            out.append({"host": host, "state": state, "ok": True, "detail": ""})
+        except Exception as e:                          # noqa: BLE001 — reported per host
+            with pins()._lock:
+                if old:
+                    pins()._data[host] = old            # keep the old pins
+                    pins().save()
+            if was_q:
+                guardian().quarantine(host, "ponovno snimanje pinova nije uspjelo")
+            out.append({"host": host, "state": "", "ok": False, "detail": str(e)[:200]})
+    J.log(J.EGRESS, who, {"event": "pins_rescanned",
+                          "ok": [r["host"] for r in out if r["ok"]],
+                          "failed": [r["host"] for r in out if not r["ok"]]},
+          subject="tls-pins", verdict="rescanned")
+    return out

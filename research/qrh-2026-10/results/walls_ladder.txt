@@ -1,0 +1,8 @@
+dropped []: min B=0.87007 (l=0.1864, b=0.0965)  binding: ['B>0.87']
+dropped ['B>0.87']: min B=0.86717 (l=0.1980, b=0.1510)  binding: ['l/h<1/(6k)', 'ly-l>11b/6']
+dropped ['B>0.87', 'l/h<1/(6k)']: min B=0.86667 (l=0.2000, b=0.0005)  binding: ['l<=1/5']
+dropped ['B>0.87', 'l/h<1/(6k)', 'l<=1/5']: min B=0.86057 (l=0.2244, b=0.1225)  binding: ['ly-l>11b/6', 'h/2<ly']
+dropped ['B>0.87', 'l/h<1/(6k)', 'l<=1/5', 'ly-l>11b/6']: min B=0.85427 (l=0.2496, b=0.2485)  binding: ['h/2<ly']
+dropped ['B>0.87', 'l/h<1/(6k)', 'l<=1/5', 'ly-l>11b/6', 'h/2<ly']: min B=0.83337 (l=0.3332, b=0.0000)  binding: ['lx>l']
+dropped ['B>0.87', 'l/h<1/(6k)', 'l<=1/5', 'ly-l>11b/6', 'h/2<ly', 'lx>l']: min B=0.61667 (l=1.2000, b=0.0000)  binding: []
+NOTE: last line (no binding wall) is the grid edge, not a result.

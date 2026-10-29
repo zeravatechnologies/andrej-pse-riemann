@@ -24,12 +24,18 @@ from .. import config
 from ..core import journal as J
 
 # USD per million tokens: (input, output)
-PRICES: dict[str, tuple[float, float]] = {
+PRICES: dict[str, tuple[float, float]] = {        # Anthropic table, cached 2026-10-06
+    "claude-fable-5-1": (10.00, 50.00),
+    "claude-opus-5-5": (4.00, 20.00),
     "claude-opus-5": (5.00, 25.00),
-    "claude-sonnet-5": (3.00, 15.00),
-    "claude-haiku-4-5": (1.00, 5.00),
     "claude-opus-4-8": (5.00, 25.00),
+    "claude-sonnet-5-5": (2.00, 10.00),
+    "claude-sonnet-5": (2.00, 10.00),
+    "claude-haiku-5-5": (0.10, 0.50),
+    "claude-haiku-4-5": (1.00, 5.00),
 }
+# Other providers: the operator enters the real price (Postavke → cijene,
+# settings "prices": {provider: [in, out]} USD per 1M tokens). No invented numbers.
 FREE_TIER = {"groq", "mistral", "gemini"}      # quota-limited, not dollar-limited
 
 DEFAULT_DAILY_CAP_USD = 5.00
@@ -68,12 +74,33 @@ class Budget:
 
     # ------------------------------------------------------------------ #
     @staticmethod
-    def price(model: str, in_tok: int, out_tok: int) -> float:
+    def price(model: str, in_tok: int, out_tok: int, provider: str = "") -> float:
         p = PRICES.get(model)
+        if p is None and provider:
+            try:
+                from .. import settings as S
+                op = (S.load().get("prices") or {}).get(provider)
+                if op:
+                    p = (float(op[0]), float(op[1]))
+            except Exception:                           # noqa: BLE001
+                p = None
         if p is None:
             # unknown / free-tier model: no dollar figure invented
             return 0.0
         return (in_tok / 1e6) * p[0] + (out_tok / 1e6) * p[1]
+
+    @staticmethod
+    def worst_case_out(provider: str, reply_out: int, max_tokens: int, cut: bool,
+                       usage_reported: bool) -> int:
+        """Item 11: what to COUNT. A provider that bills the full completion on a
+        hang-up is charged max_tokens when we cut it; a reply without usage
+        numbers is charged max_tokens too. Never less than what was reported."""
+        from . import providers as P
+        if not usage_reported:
+            return max(reply_out, max_tokens)
+        if cut and not P.cancel_stops_billing(provider):
+            return max(reply_out, max_tokens)
+        return reply_out
 
     def check(self, provider: str) -> None:
         """Raise before spending if the daily cap is already reached."""
@@ -89,8 +116,8 @@ class Budget:
                 f"Limit mijenjaš u Postavkama.")
 
     def record(self, provider: str, model: str, role: str,
-               in_tok: int, out_tok: int) -> float:
-        usd = self.price(model, in_tok, out_tok)
+               in_tok: int, out_tok: int, worst_case: bool = False) -> float:
+        usd = self.price(model, in_tok, out_tok, provider)
         with self._lock:
             d = self._today()
             d["usd"] = round(d["usd"] + usd, 6)
@@ -107,7 +134,8 @@ class Budget:
             self.save()
         J.log(J.MODEL, f"model:{provider}",
               {"model": model, "role": role, "in": in_tok, "out": out_tok,
-               "usd": round(usd, 6), "free_tier": provider in FREE_TIER},
+               "usd": round(usd, 6), "free_tier": provider in FREE_TIER,
+               "worst_case": worst_case},
               subject=provider)
         return usd
 
@@ -127,28 +155,28 @@ class Budget:
         free_calls = sum(v["calls"] for p, v in d["by_provider"].items()
                          if p in FREE_TIER)
         paid_calls = d["calls"] - free_calls
-        return (f"danas ${d['usd']:.2f} od ${self.daily_cap:.2f} · "
-                f"{d['calls']} poziva ({free_calls} bespl. / {paid_calls} plać.)")
+        from ..i18n import tr
+        return tr("danas ${0:.2f} od ${1:.2f} · {2} poziva ({3} bespl. / {4} plać.)").format(
+            d["usd"], self.daily_cap, d["calls"], free_calls, paid_calls)
 
     def tooltip(self) -> str:
+        from ..i18n import tr
         d = self.today()
-        lines = ["Potrošeno DANAS (nije preostalo — potrošeno).", "",
-                 f"Dnevni limit vrijedi samo za plaćene provajdere: "
-                 f"${self.daily_cap:.2f}.", ""]
+        lines = [tr("Potrošeno DANAS (nije preostalo — potrošeno)."), "",
+                 tr("Dnevni limit vrijedi samo za plaćene provajdere: ${0:.2f}.").format(self.daily_cap), ""]
         if d["by_provider"]:
-            lines.append("Po provajderu:")
+            lines.append(tr("Po provajderu:"))
             for p, v in sorted(d["by_provider"].items()):
-                tag = "besplatan tier" if p in FREE_TIER else f"${v['usd']:.4f}"
-                lines.append(f"  {p}: {v['calls']} poziva · {tag} · "
-                             f"{v['in']}→{v['out']} tokena")
+                tag = tr("besplatan tier") if p in FREE_TIER else f"${v['usd']:.4f}"
+                lines.append(tr("  {0}: {1} poziva · {2} · {3}→{4} tokena").format(
+                    p, v["calls"], tag, v["in"], v["out"]))
         else:
-            lines.append("Danas još nijedan poziv.")
+            lines.append(tr("Danas još nijedan poziv."))
         if any(p in FREE_TIER for p in d["by_provider"]):
-            lines += ["", "Besplatni tierovi (Groq/Gemini/Mistral) imaju kvotu "
-                          "po zahtjevima i tokenima koju vodi sam provajder — "
-                          "ova aplikacija je ne vidi i ne broji. Ako te odbiju, "
-                          "to je njihova kvota, ne ovaj limit."]
-        lines += ["", f"Ukupno od početka: ${self.total():.2f}"]
+            lines += ["", tr("Besplatni tierovi (Groq/Gemini/Mistral) imaju kvotu po zahtjevima i "
+                             "tokenima koju vodi sam provajder — ova aplikacija je ne vidi i ne "
+                             "broji. Ako te odbiju, to je njihova kvota, ne ovaj limit.")]
+        lines += ["", tr("Ukupno od početka: ${0:.2f}").format(self.total())]
         return "\n".join(lines)
 
     def history(self, days: int = 20) -> list[tuple[str, float]]:

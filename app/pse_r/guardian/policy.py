@@ -41,6 +41,18 @@ MODEL_HOSTS = [
              "GROQ_API_KEY", 2.0, ("llm", "groq")),
     HostRule("generativelanguage.googleapis.com", CREDENTIALED,
              "Gemini — vizija + trijaža", "GEMINI_API_KEY", 2.0, ("llm", "gemini")),
+    # round 3, item 9
+    HostRule("api.openai.com", CREDENTIALED, "OpenAI", "OPENAI_API_KEY", 2.0,
+             ("llm", "openai")),
+    HostRule("api.deepseek.com", CREDENTIALED, "DeepSeek API", "DEEPSEEK_API_KEY", 2.0,
+             ("llm", "deepseek")),
+    HostRule("api.x.ai", CREDENTIALED, "xAI (Grok)", "XAI_API_KEY", 2.0, ("llm", "xai")),
+    HostRule("openrouter.ai", CREDENTIALED, "OpenRouter", "OPENROUTER_API_KEY", 2.0,
+             ("llm", "openrouter")),
+    HostRule("api.together.xyz", CREDENTIALED, "Together AI", "TOGETHER_API_KEY", 2.0,
+             ("llm", "together")),
+    HostRule("api.fireworks.ai", CREDENTIALED, "Fireworks AI", "FIREWORKS_API_KEY", 2.0,
+             ("llm", "fireworks")),
 ]
 
 # --- literature / data sources (all keyless unless noted) ------------------- #
@@ -84,11 +96,27 @@ ALL_RULES = MODEL_HOSTS + SOURCE_HOSTS
 _BY_HOST = {r.host: r for r in ALL_RULES}
 
 
+def declared_rules() -> list[HostRule]:
+    """OpenAI-compatible endpoints the OPERATOR confirmed (declarations kind
+    "endpoints"). A proposal alone opens nothing."""
+    try:
+        from ..shared_lib import declarations as DECL
+        eps = DECL.current().get("endpoints") or {}
+    except Exception:                                   # noqa: BLE001
+        return []
+    return [HostRule(e["host"].lower(), CREDENTIALED, f"deklarisano: {name}",
+                     e["key_name"], 2.0, ("llm", "custom"))
+            for name, e in eps.items() if e.get("host") and e.get("key_name")]
+
+
 def rule_for(host: str):
     """Exact match, then '.suffix' subdomain match. Returns None = deny."""
     host = (host or "").lower().strip().rstrip(".")
     if host in _BY_HOST:
         return _BY_HOST[host]
+    for r in declared_rules():
+        if r.host == host:
+            return r
     for r in ALL_RULES:
         if r.host.startswith(".") and (host.endswith(r.host) or host == r.host[1:]):
             return r
@@ -109,7 +137,8 @@ def hosts_for_tag(tag: str) -> list[HostRule]:
 
 
 def describe() -> list[dict]:
-    """Table for the wizard's source screen."""
+    """Table for the wizard's source screen (static + declared endpoints)."""
     return [{"host": r.host, "class": r.klass, "why": r.why,
              "key": r.key_env, "optional_key": bool(r.key_env) and r.klass == ANONYMOUS,
-             "rps": r.max_rps, "tags": list(r.tags)} for r in ALL_RULES]
+             "rps": r.max_rps, "tags": list(r.tags)}
+            for r in ALL_RULES + declared_rules()]

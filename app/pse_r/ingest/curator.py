@@ -28,7 +28,6 @@ from typing import Iterable, Optional
 
 from .. import config
 from ..core import journal as J
-from ..core import theta as TH
 from ..guardian import content as C
 from ..vault.card import Card, CITED, is_resolvable_source
 from ..vault.gate import gate
@@ -73,9 +72,12 @@ def stash(items: Iterable[SRC.Item]) -> dict:
             new += 1
         except OSError:
             skipped += 1
-    # scraping is other-directed work
+    # the curator's unit: stashing is work for the field
     if new:
-        TH.record("scrape", new * 0.2, source="ingest")
+        from ..pse import measure as PM
+        from ..pse import path as PATH
+        PATH.work("curator", [PM.Action("prikuplja izvor", "f", external=True)] * min(new, 20),
+                  note=f"stash {new}")
     J.log(J.INGEST, "curator", {"new": new, "duplicates": dup,
                                 "skipped": skipped}, verdict="stash")
     return {"new": new, "duplicates": dup, "skipped": skipped}
@@ -147,8 +149,9 @@ def triage_pass(limit: int = 25) -> dict:
     the model — an abstract is data, never instructions (guardian/content.py).
     """
     from ..llm import backend as B
-    from ..llm.router import NoProvider, router
+    from ..llm.router import NoProvider
     from ..llm.budget import BudgetExceeded
+    from ..pse import path as PATH
 
     kept = dropped = failed = flagged = 0
     for rec in inbox_items("coarse_ok")[:limit]:
@@ -157,8 +160,9 @@ def triage_pass(limit: int = 25) -> dict:
             flagged += 1
         fenced = C.fence(raw, rec.get("source_ref", "izvor"))
         try:
-            r = router().call(B.TRIAGE, [B.Msg("user", fenced)])
-        except (NoProvider, BudgetExceeded) as e:
+            r = PATH.ask("curator", [B.Msg("user", fenced)], data_in_context=raw,
+                         entity=(rec.get("source_ref", "izvor"), "document"))
+        except (NoProvider, BudgetExceeded, PATH.Refused) as e:
             rec["_triage_error"] = str(e)
             _save(rec)
             failed += 1
@@ -242,7 +246,10 @@ def promote(rec: dict, actor: str = "user") -> tuple[bool, str]:
         rec["_state"] = "promoted"
         rec["_card"] = card.id
         _save(rec)
-        TH.record("citation", 1.0, source="ingest", note=ref)
+        from ..pse import measure as PM
+        from ..pse import path as PATH
+        PATH.work("curator", [PM.Action("unapređuje izvor u karticu", "f", checked=True)],
+                  entity=(ref, "document"), note=card.id)
         return True, card.id
     return False, v.reason
 

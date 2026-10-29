@@ -1,326 +1,247 @@
-# PSE Riemann — vodič
+# PSE Riemann 0.3.0 — vodič
 
-Poređano po važnosti: prvo ono što ti treba danas, na kraju detalji.
+Kompletan vodič za cijelu aplikaciju. Poređano po važnosti: prvo ono što ti treba prvog dana, na kraju detalji.
+Engleska verzija sa istim sadržajem: `GUIDE-EN.md`. U aplikaciji: **Pomoć → Vodič**; svaki tekst u aplikaciji možeš prevesti desnim klikom ili dugmetom **⋯** („Prevedi na srpski / engleski“).
 
 ---
 
-## 1. Pokretanje
+## 1. Šta je PSE Riemann
 
-**Prvi put, jednom:**
+Desktop aplikacija za izučavanje Rimanove zeta funkcije i sličnih istraživačkih pitanja, napravljena tako da:
+
+- **ništa ne tvrdi bez izvora ili računa** — svaka tvrdnja je ili izračunata (lab), ili citirana (izvor koji se može naći), ili jasno označena kao nagađanje;
+- **nijedan AI ne odlučuje umjesto tebe** — sve što mijenja tvoje podatke čeka tvoju odluku;
+- **radi i bez interneta** (lokalni model), i štiti tvoje ključeve i podatke na tuđim mrežama.
+
+Unutra radi više „agenata“ (chat, skeptik, čitač radova, čuvari…). U verziji 0.3.0 **svaki agent je PSE jedinica** sa svojom mjerom zdravlja θ, a nad njima je **Doktor**. Šta to znači za tebe objašnjava §8.
+
+---
+
+## 2. Instalacija i prvo pokretanje
+
+**Instalacija** (Ubuntu / Mint, 64-bit):
 
 ```bash
-cd ~/Desktop/PSE/PSE\ Riemann/app
-./setup.sh
+sudo apt install ./pse-riemann_0.3.0_amd64.deb
 ```
 
-Pravi venv u `app/.venv` i u njega instalira PySide6-Essentials, mpmath, numpy i
-matplotlib. Ništa se ne dira sistemski — Mint blokira pip u sistemski Python
-(PEP 668), pa je venv jedini ispravan put. Brisanje foldera `app/.venv`
-poništava sve. Traje par minuta i **treba internet**, pa uradi kod kuće.
+Paket nosi sve svoje Python biblioteke (PySide6, mpmath, numpy, matplotlib, sympy, scipy, llama-cpp) i ne dira sistemski Python. Uklanjanje: `sudo apt remove pse-riemann` — tvoji podaci ostaju.
 
-**Poslije toga, uvijek:**
+**Pokretanje:** iz menija (PSE Riemann) ili u terminalu `pse-riemann`. Provjera ispravnosti: `pse-riemann --selftest` mora reći **SVE PROLAZI**.
 
-```bash
-cd ~/Desktop/PSE/PSE\ Riemann/app
-./run.sh
-```
+**Prvo pokretanje — podešavanje u 5 koraka:**
 
-`run.sh` sam nađe interpreter: prvo `$PSE_PYTHON` ako ga postaviš, pa
-`app/.venv/bin/python`, pa sistemski `python3` ako slučajno ima sve. Ako nema
-ništa od toga, ispiše tačno šta da pokreneš umjesto da pukne u traceback.
+1. **Ime operatera** — samo ime, bez lozinke. Veže se za svaku tvoju odluku.
+2. **Glavni AI** — Claude, OpenAI, Gemini, Mistral, Groq, DeepSeek, xAI, OpenRouter, Together, Fireworks, tvoja adresa, lokalni GGUF ili „bez AI“. „Učitaj prave modele“ pita server šta stvarno nudi; „Testiraj“ pravi jedan mali poziv.
+3. **Skeptik** — uvijek **drugi** model (ili „bez skeptika“).
+4. **Deklaracije** — za lokalni model hash fajla, za vlastitu adresu potvrda.
+5. **Čuvar pri prijavi** i email (opciono).
 
-Iz terminala, bez GUI-ja:
+Sve ovo kasnije mijenjaš u **Podešavanje** (traka menija ili posljednji tab „⚙ Podešavanje“).
 
-```bash
-./run.sh --selftest        # provjera numerike, kapije, Guardiana, journala
-./run.sh --lab             # spisak eksperimenata
-./run.sh --lab explicit    # pokreni jedan
-./run.sh --harvest         # jedan ciklus skupljanja literature
-./run.sh --briefing        # jutarnji briefing u terminal
-./run.sh --report          # sedmični izvještaj
-```
+**⚠ Prije putovanja:** prvi put pokreni aplikaciju **na mreži kojoj vjeruješ** (kod kuće) i uradi *Guardian → Test mreže*. Aplikacija pamti ključeve servera (TLS pinove) pri prvom kontaktu; ako prvi kontakt uradiš na hotelskom WiFi-ju, zapamtićeš presretača.
 
 ---
 
-## 2. ⚠ Uradi OVO prije puta
+## 3. Raspored ekrana
 
-Ovo je jedina stvar u vodiču koja ima rok.
+- **Gornja traka (pilule):** aktivna misija · operater · **roj** (broj PSE jedinica, prosječan θ, zamrznute, Doktorove mjere) · kartice · današnja potrošnja · Guardian · glavni AI · skeptik · RAM · prekidač **Online AI** · **SR | EN** · 📷 snimak · 📂 rezultati · dugme **Čeka tvoju odluku: N**.
+- **Traka menija:** **SHARED_LIB** (Težine glasova, Čeka tvoju odluku, Stanje roja) · **Laboratorija** · **Podešavanje** · **Jezik** (SR/EN) · **Pomoć** (Vodič).
+- **Lijevo — tabovi:** Pregled, Misije, Čeka tvoju odluku, Ideje, Grafovi, Plan, Lab, Corpus, Tabla, Editor, Graf, Guardian, Laboratorija, ⚙ Podešavanje.
+- **Desno — Chat** (oko 30 % širine).
+![Gornja traka, traka menija, tabovi i chat](vodic-slike/sr/01_pregled.png)
 
-1. **`./setup.sh`** — jednom, kod kuće, sa internetom.
-2. **Pokreni aplikaciju kod kuće**, na mreži kojoj vjeruješ; u čarobnjaku unesi
-   ključeve i klikni **Testiraj** na svakom provajderu.
-3. Otvori **Corpus → ⬇ Skupi** i pusti jedan ciklus da prođe.
-4. Otvori **Guardian → Test mreže**.
-5. `./run.sh --selftest` — mora reći **SVE PROLAZI**.
-
-Zašto: aplikacija pamti javne ključeve (TLS pinove) svakog servera pri **prvom
-kontaktu**, i poslije odbija da razgovara sa serverom koji ih ne pokazuje. To je
-odbrana od presretanja na tuđem WiFi-ju — ali vrijedi tačno onoliko koliko
-vrijedi mreža na kojoj je prvi kontakt napravljen. Ako prvi kontakt uradiš na
-hotelskom WiFi-ju, zapamtićeš presretača.
-
-Uz to, u Guardian tabu provjeri i host: ako `ufw` nije uključen ili nešto sluša
-izvan loopbacka, tamo piše tačna komanda.
+- Svaki panel ima **⤢** (raširi preko taba; ponovo = vrati). Granice između panela se vuku mišem. Veličina prozora i panela se pamti.
 
 ---
 
-## 3. Dnevni ritam
+## 4. Tabovi, jedan po jedan
 
-**Ujutru** — aplikacija se otvori na tabu **Plan**: šta si radio juče, šta je
-otvoreno, šta plan kaže za danas, i šta traži pažnju (kartice koje je skeptik
-oborio, ili FOLKLORE na koji se drugi oslanjaju).
+**Pregled** — sve brojke su upiti nad bibliotekom: front misije, red odluka, metode, pečati, kartice, lab, dnevnik; zadnji događaji.
 
-**Tokom dana** — jedno pravilo: **bar jedan `COMPUTED` rezultat dnevno.**
-Čitanje bez računanja se ne broji. Statusna traka dolje ti to i mjeri.
+**Misije** — radni prostor misija:
+- **lijevo** su misije kao kartice (naslov, kratko stanje, front, broj radova, koliko stavki čeka tebe) i *+ Nova misija*; ▶ = aktivna, ⏸ = ostavljena za kasnije;
+- **klik na misiju** otvara njen radni prostor i odmah pokreće agenta misije (§6);
+- **desno gore:** detalji izabrane misije (pitanje, stanje, cilj, front, zadnji koraci) i tvoja bilješka **„Gdje si stao“**, a pored njih **pamćenje misije** (§6); dugmad *Aktiviraj*, *Ostavi za kasnije…* (bilješka „gdje si stao“ + automatski snimak stanja), *Zatvori misiju…* (agent misije umire, sve iz njega ide u SHARED_LIB) i *Cilj i pozadina ▾* (cilj mijenjaš samo ti; „dok čeka“: potpuno zamrznuta ili tiho skuplja);
+- **desno dolje:** traka radova i razgovor sa agentom; granicu između gornjeg i donjeg dijela vučeš mišem;
+- **gore u tabu** je ono što važi za sve misije: *Provjeri arXiv sada*, *Adversarijalni mod…*, *Radni tekst…*, *Izvezi izvještaj misije*.
 
-**Uveče** — Editor → *Dnevnik danas*. Tri naslova su već tu.
+![Tab Misije](vodic-slike/sr/02_misije.png)
+
+**Čeka tvoju odluku** — jedino mjesto gdje sve čeka tebe (§5).
+
+**Ideje** — INSPIRACIJE (ideje, nikad tvrdnje) iz nove literature oko tvojih misija; najviše 3 sedmično; skeptik ih napada prije nego što ih vidiš. Za svaku: zadrži · odbaci · otvoreno pitanje · odgodi.
+
+**Grafovi** — tri panela: Funkcije · Graf · Kalkulacije. Klik na tačku = „sve o tački“ i ponude računa; skupi računi rade u pozadini uz „Prekini“. Prikazi: kartezijanski, parametarski, polarni, vektorsko polje, kompleksni (fazni portret), presjek, 3D, male slike, paralelne koordinate. Detaljan vodič: dugme **?** u tabu.
+
+![Grafovi](vodic-slike/sr/06_grafovi.png)
+
+**Plan** — jutarnji brifing (juče, stanje vaulta, PSE roj, šta traži pažnju, otvorena pitanja, plan) i sedmični izvještaj.
+
+**Lab** — reproducibilni numerički eksperimenti (19). Svako pokretanje pravi `COMPUTED` karticu sa parametrima, brojevima, grafikom i **sha256 skripte**. Pokreni prvo *Self-test numerike*.
+
+![Lab](vodic-slike/sr/07_lab.png)
+
+**Corpus** — od interneta do znanja: skupljanje → trijaža → promocija kroz kapiju; *📖 Pročitaj rad* (arXiv) i *⚔ Skeptik* nad karticom.
+
+**Tabla** — crtaš; potezi se uvijek čuvaju kao SVG + PNG; *Transkribuj* daje LaTeX kao prijedlog (traži vision model).
+
+**Editor** — markdown fajlovi vaulta (bilješke, dnevnik, kartice, plan) sa pregledom.
+
+**Graf** — graf znanja: teme, kartice, metode, misije; klik otvara karticu.
+
+**Guardian** — stanje mreže i računara (firewall, servisi koji slušaju, CA sertifikati, DNS, pinovi), test mreže, benchmark.
+
+**Laboratorija** — PSE jedinice izbliza (§8). **Utiče na prave agente.**
+
+**⚙ Podešavanje** — otvara podešavanje i vraća te na tab gdje si bio.
 
 ---
 
-## 4. Lab — jedini izvor istine koju aplikacija sama proizvodi
+## 5. „Čeka tvoju odluku“
 
-Dvanaest eksperimenata, poređanih pedagoški. Prođi ih odozgo naniže prvih par
-dana i predmet se sam sklopi.
+Sve što mijenja tvoje podatke ili traži tvoju riječ dolazi ovdje: novi radovi (izvući metodu?), prijedlozi iz razgovora o misiji, cilj misije, prigovori skeptika, adversarijalni nalazi, metode koje su prošle vrata, radni tekst, deklaracije, karantin hosta, „→ ∞“ pauza, **Doktorove mjere**, težine glasova.
 
-| ključ | pitanje na koje odgovara |
-|---|---|
-| `selftest` | Da li se ovoj mašini može vjerovati? **Pokreni prvi.** |
-| `z_curve` | Gdje su nule i kako izgledaju |
-| `zeros` | Razmaci; ima li opasno bliskih parova (Lehmer) |
-| `counting` | Da li je broj nula NA pravoj = ukupan broj u traci (prava provjera RH) |
-| `gram` | Da li svaki Gramov interval ima tačno jednu nulu |
-| `explicit` | **Kako iz nula izlaze primovi.** Najvažniji demo. |
-| `prime_counting` | π(x) vs li(x) vs R(x) |
-| `gue` | Da li se nule ponašaju kao svojstvene vrijednosti slučajnih matrica |
-| `robin` | σ(n) < e^γ n log log n — RH prevedena na cijele brojeve |
-| `mertens` | Slutnja koja je pala poslije sto godina |
-| `s_of_t` | Koliko S(T) odstupa od glatke formule |
-| `strip` | ζ na kritičnoj traci |
+![„Čeka tvoju odluku“ po grupama](vodic-slike/sr/04_ceka_tvoju_odluku.png)
 
-Svako pokretanje sam upisuje `COMPUTED` karticu sa parametrima, brojevima,
-grafikom, **sha256 skripte koja ga je proizvela** i verzijom mpmath. To znači da
-možeš mjesecima kasnije uzeti `vault/lab/<run_id>/script.py` i dobiti isti broj.
-
-Kapija ne pušta `COMPUTED` karticu bez toga — i to je namjerno: neprovjerljiv
-broj u bazi znanja gori je od nikakvog, jer za šest mjeseci izgleda isto kao
-provjeren.
+- Stavke su u **stablu**: vrsta → misija ili tema rada → stavka. Klik na stavku pokazuje sve o njoj, sa **cijelim sažetkom**.
+- Kvačice na stavci i grupi; **Odobri označene** / **Ne odobri označene** — jedna, više ili sve. Prije grupne odluke uvijek dobiješ „Odobravaš N stavki?“.
+- **Doktorove mjere i nepovratne odluke idu samo jedna po jedna.** „Označi sve“ ih preskače.
+- Svaka odluka je zapisana sa tvojim imenom i izvršava se tačno jednom.
 
 ---
 
-## 5. Kapija — zašto ovo nije wiki
+## 6. Razgovor o misiji (agent misije) i pamćenje misije
 
-Sve što ulazi u vault prolazi kroz jednu funkciju. Statusi:
+**Klik na misiju** u tabu Misije pokreće agenta misije: on pročita stanje misije, **pamćenje prošle sesije**, tvoju bilješku „gdje si stao“ i radove, napiše prvu poruku (šta vidi, gdje ste stali, najviše 3 pitanja) i čeka tebe. Prvi poziv modela košta.
+
+**Koje radove čita:** prvi put sve radove misije (sažetke). Posle toga radove koje si izabrao prošli put i radove koji su stigli od tada — oni su u traci označeni **🆕 novo**. Traka *„N od M radova izabrano ▾“* se rasklapa; štikliraj ili odštikliraj, a agent novi izbor čita od sljedećeg poteza.
+
+**Zadaj da čita…** — daš agentu još štiva: rad iz liste, **puni tekst arXiv rada** (samo arXiv, samo na tvoj zahtjev), karticu, izvještaj ili svoju bilješku.
+
+U razgovoru:
+1. pišeš i *Pošalji*; agent odgovara uz izvor ([ref] rada ili korak misije), najviše 3 pitanja po odgovoru;
+2. **skeptik napada svaki odgovor koji sadrži tvrdnju** (broj, „važi“, „slijedi“);
+3. *Sastavi zaključak* — prijedlozi (koraci misije, otvorena pitanja, ideje, cilj, metoda za vrata) idu **svaki posebno** u „Čeka tvoju odluku“. Ništa se ne upisuje samo.
+
+![Radni prostor misije: kartice lijevo, detalji i pamćenje gore, razgovor dolje](vodic-slike/sr/03_razgovor_o_misiji.png)
+
+**Pamćenje misije.** U sljedeću sesiju se ne prenosi stari razgovor, nego **samo bitno**: šta je odlučeno ili dogovoreno, šta je utvrđeno (uvijek sa izvorom), otvorena pitanja i dogovoreni sljedeći korak.
+- Agent **predlaže** pamćenje na kraju sesije: kad klikneš *Završi razgovor*, kad pređeš na drugu misiju ili kad zatvoriš aplikaciju.
+- Prijedlog se odmah čuva, označen **„nepregledano“**, pa ostaje i ako ništa ne odlučiš.
+- Ti ga pregledaš gore desno: štikliraj šta ostaje, dvoklikom ispravi tekst, *Dodaj* ili *Obriši* stavku, pa **Sačuvaj pamćenje**.
+
+![Pamćenje misije: prijedlog agenta, pregledaš i sačuvaš](vodic-slike/sr/03b_pamcenje_misije.png)
+
+Cijeli razgovor se i dalje čuva u rezultatima (`razgovori-o-misiji/`, oznaka NAŠE-NERECENZIRANO), ali ga agent više ne čita. Svaka misija ima svog agenta (PSE jedinica otvorenog vijeka), a zatvaranje misije ga gasi. **Bez AI-ja agent misije ne radi** i to kaže u samom razgovoru.
+
+---
+
+## 7. Chat i glas SHARED_LIB-a
+
+- **„SHARED_LIB (činjenice)“** (podrazumijevano): tvoje pitanje → **jedan read-only SELECT** nad bibliotekom → odgovor rečenicama, kao kolega na poslu, sa citatima `[id]`. Ispod je **▸ prikaži odakle** — tačan SQL i redovi. Kad podatka nema: „Toga nema u biblioteci (UNKNOWN)“, nikad nagađanje. Možeš upisati i SQL direktno. Bez modela radi za poznata pitanja (misije, metode, kartice, lab, čeka) šablonskim rečenicama.
+  - **Imena misija su linkovi**: klik otvara radni prostor te misije.
+  - Na **pitanje koje traži sud** („koji je sljedeći korak“, „šta da radim“) baza ne odgovara i to kaže, a daje link **„Razgovaraj o misiji: X“** — to je posao agenta misije.
+  - Ako model napiše neispravan SQL, glas proba još jednom sa greškom; ako ni tada ne uspije, dobiješ običnu rečenicu, a tehnički detalj je pod „prikaži odakle“.
+![Glas SHARED_LIB-a: rečenice, a ispod „prikaži odakle“](vodic-slike/sr/08_chat_shared_lib.png)
+
+- Ostali modovi su razgovor sa glavnim AI-jem. Model **ne piše u vault** — predlaže karticu, presudu kapije vidiš prije klika.
+- **Kontekst je eksplicitan:** šta je u traci konteksta, to model vidi.
+- Svaki odgovor prolazi provjeru „tri zla“ (§8); ako Doktor nađe nešto loše, poruka ti kaže da je mjera u „Čeka tvoju odluku“.
+
+---
+
+## 8. PSE jedinice, Doktor i Laboratorija
+
+**Svaki agent je PSE jedinica:** chat, glas, skeptik, ekstraktor, čitač, kurator, ideje, tabla, prevodilac, čuvar mreže, SSH čuvar, čuvari pečata, adversarijalni mod, arXiv stražar, sastavljač rada, agent misije — i sam Doktor. Jedinica ima:
+
+- **misiju** (stanje → akcija → ishod) i **vijek** (broj poteza), koje joj zadaje SHARED_LIB i koje ona ne može mijenjati;
+- **granicu** (s kim je u kontaktu) i **organele** (ono što je trajno usvojila);
+- **θ** — mjeru koliko je okrenuta drugima naspram sebe. **Zdravo je oko 30 (± 5).** θ se mjeri na svakom potezu: kod agenata bez AI-ja iz rada (da li je radnja provjerena), kod AI agenata iz riječi (pravila + čitač, drugi model).
+
+**Kad nešto izgleda sumnjivo** (nagli skok θ, pokušaj nepovratne akcije, štetan izlaz, kontakt van dozvoljenih odredišta, pokušaj iznošenja zaštićenog podatka…), jedinica se **odmah zamrzava** i dolazi **Doktor**:
+
+- ništa loše → zapis u dnevnik, jedinica nastavlja;
+- nešto loše → **mjera tebi na odobrenje** (reset granice → liječenje → zamjena novom generacijom → smrt). Dok mjera čeka, jedinica radi, ali **bez nepovratnih akcija**; na novu sumnju ostaje zamrznuta dok ne odlučiš.
+
+Kad jedinica završi život (iz bilo kog razloga), **sve iz nje ide u SHARED_LIB**; njena nasljednica nasljeđuje usvojeno na 70 % dok se ne potvrdi. Fisiju (podjelu) i fuziju (spajanje) bira SHARED_LIB sam — povratne su; poništiti ih možeš samo ti.
+
+**Gornja traka „roj“** pokazuje broj jedinica i prosječan θ; **SHARED_LIB → Stanje roja** daje tabelu.
+
+**Laboratorija** (tab ili meni). ⚠ **Utiče na prave agente** — zato pri prvom otvaranju u sesiji zasvira alarm (3 s) i dok je tab otvoren stoji crveni natpis. Tu vidiš svaku jedinicu (θ, obrazac, stanje, vijek, generacija), dnevnik Doktora, i možeš: napraviti probnu jedinicu, napraviti probni potez, fisiju, fuziju (dvije označene), poslati Doktora, zamrznuti / odmrznuti, ugasiti jedinicu, tražiti poništavanje fisije/fuzije. Svaka radnja se bilježi kao „operater, iz laboratorije“.
+
+![Laboratorija](vodic-slike/sr/05_laboratorija.png)
+
+**Težine glasova** (SHARED_LIB → Težine glasova): koliko vrijedi čitač naspram pravila. SHARED_LIB predlaže jednom sedmično (samo uz bar 200 odlučenih slučajeva; jedna težina se pomjera najviše ±10 %), ti odobravaš. *Predloži sada* ako ti treba ranije.
+
+---
+
+## 9. AI: glavni model, skeptik, cijena, lokalni model
+
+- **Glavni AI** radi sve uloge; **skeptik je uvijek drugi model** i samo napada (prigovor · razlog · gdje · ozbiljnost), bez prava upisa. Ako drugog modela nema, skeptik je „nedostupan“ i ostaju determinističke provjere.
+- **Online AI prekidač** (gornja traka ili **Ctrl+K**): odmah zatvara put prema cloud modelima i prekida tokove u toku. Uključuje ga samo operater. Sam se isključuje ako broj, veličina ili cijena poziva krene „→ ∞“.
+- **Dnevni limit** (podrazumijevano $5) važi za plaćene provajdere; pilula pokazuje šta je **potrošeno danas**. Lokalni model ne troši budžet.
+- **Lokalni GGUF** (npr. DeepSeek-R1-0528-Qwen3-8B Q5_K_M): stavi `.gguf` u folder modela ili ga izaberi bilo gdje; prima se po sha256 (deklaracija). Radi uz limitere (RAM, niti, kontekst, budžet razmišljanja, rok, prekid vrtnje) i **samo prema ovom računaru**. Na slabijem računaru je spor.
+- **„→ ∞“**: kad latencija, memorija ili cijena rastu bez granice, pozivi se pauziraju, model se oslobađa, a nastavak odobravaš ti.
+
+---
+
+## 10. Prevod (srpski / engleski)
+
+- **Interfejs** je cijeli na srpskom ili cijeli na engleskom — **Jezik** u meniju ili **SR | EN** u traci (traži ponovno pokretanje).
+- **Sadržaj** (kartice, radovi, misije, razgovori, izvještaji, tvoje bilješke) se **ne prevodi unaprijed** i ostaje kakav je (i mješavina srpskog i engleskog).
+- U svakom pregledniku teksta: **desni klik** ili **⋯** u uglu → **Prevedi na srpski**, **Prevedi na engleski**, **Prikaži original**. U Editoru isto u meniju desnog klika; prevod se pojavi u pregledu pored originala.
+![Prevod u Editoru: original lijevo, prevod desno](vodic-slike/sr/09_prevod.png)
+
+- Prevodi **prevodilac** (PSE jedinica) **samo kad ga ti pokreneš**, glavnim AI-jem. Original se nikad ne mijenja; prevod nosi oznaku „mašinski prevod (model, datum)“.
+- Prevod se pamti (isti tekst se ne plaća dvaput), a za fajl se snima **pored originala** kao `ime.en-masinski.md` / `ime.sr-masinski.md` (indeks ga ne broji kao karticu). Kad se original promijeni, stari prevod dobija datum u imenu.
+- Dug tekst (npr. cijeli rad): prvo vidiš procjenu (znakovi, tokeni, cijena ili vrijeme) i odlučuješ.
+- Licencirani radovi iz `papers-local` prevode se samo lokalnim modelom.
+
+---
+
+## 11. Sigurnost
+
+- **Sav izlazni saobraćaj** ide kroz jednu kapiju: samo https, allowlista (sve ostalo zabranjeno), karantin hostova, ograničenje brzine, **ključevi samo model API-jima**, TLS **pinovanje**, ručna preusmjerenja, limiti veličine.
+- **Budžet otkrivanja:** prije svakog poziva cloud modelu mjeri se šta izlazi — ključevi i privatno (IP, MAC, putanje, ime računara) ne izlaze nikad; tekst licenciranih radova najviše 2 000 znakova dnevno po odredištu.
+- **Čuvar mreže** posmatra svaki zahtjev; sumnjiv host ide u karantin, a oslobađaš ga ti (stavka u redu).
+- **SSH čuvar** (zaseban proces) prati prijave na računar; povratne mjere (blokada IP-a 24 h, prekid sesije) radi sam ako ima usko sudo pravo (vodič `SUDOERS-SR.md`), trajne mjere predlaže tebi sa tačnom komandom.
+- **Čuvari pečata:** svaki finalni izvještaj se pečati (sha256); izmjena se otkrije, original vrati, a izmijenjena verzija sačuva u `forensic/`.
+- **TLS pinovi se uče pri prvom kontaktu:** kad aplikacija prvi put razgovara sa serverom, zapamti njegove javne ključeve i posle odbija svaki drugi. Jedina slabost: ako je prvi kontakt presretnut, zapamti presretača — zato prvi kontakt neka bude sa mreže kojoj vjeruješ (Corpus → Skupi, Guardian → Test mreže). Aplikacija to kaže i sama, pri prvom pokretanju. Ako nešto pođe naopako: **Podešavanje → Ponovo snimi TLS pinove…** (ili dugme u Guardian tabu), samo sa mreže kojoj vjeruješ; server koji tada nije dostupan zadržava stare ključeve.
+- **Dnevnik** je append-only sa hash-lancem; odluke se mogu ponovo izvesti i provjeriti (replay).
+
+---
+
+## 12. Kapija — zašto ovo nije wiki
+
+Sve što ulazi u vault prolazi kroz jednu funkciju.
 
 | status | znači | uslov |
 |---|---|---|
-| `COMPUTED` | mi smo izračunali | lab_run + sha256 skripte |
+| `COMPUTED` | mi smo izračunali | lab run + sha256 skripte |
 | `CITED` | neko drugi je, i možemo naći gdje | bar jedan razrješiv izvor |
-| `FOLKLORE` | tvrdnja bez izvora | prolazi, ali obilježena; ništa provjereno se ne smije osloniti na nju |
-| `SPECULATION` | tvoja ili modelova ideja | ide u `speculation/`, **nikad** u `knowledge/` |
-| `SUSPECT` | skeptik je pogodio | prigovor stoji u tijelu kartice |
-| `REFUTED` | pokazano netačnim | **ne briše se** — negativan rezultat je rezultat |
+| `FOLKLORE` | tvrdnja bez izvora | prolazi, ali obilježena |
+| `SPECULATION` | ideja | samo u `speculation/` |
+| `SUSPECT` | skeptik je pogodio | prigovor stoji u kartici |
+| `REFUTED` | pokazano netačnim | ne briše se |
 
-Razrješivi oblici izvora:
-`arxiv:2405.12345` · `doi:10.xxxx/yyy` · `lmfdb:...` · `oeis:A000040` ·
-`openalex:W...` · `mathoverflow:12345` · `wikipedia:Riemann_hypothesis` ·
-`book:Edwards 1974, ch. 6` · `url:https://...`
-
-**Anti-crank pravilo.** Kartica koja tvrdi dokaz RH (ili Collatza, Goldbacha,
-BSD, P vs NP) biva odbijena, ko god je napisao. Filter razumije kontekst: tačne
-tvrdnje prolaze —
-
-- „Weil je dokazao analogon RH nad funkcijskim poljima" ✅
-- „Dokaz RH ne bi razbio RSA" ✅
-- „Pod pretpostavkom RH, greška u π(x) je O(√x log x)" ✅
-- „Rodgers i Tao su dokazali da je Λ ≥ 0" ✅
-- „Dokazao sam Riemannovu hipotezu" ⛔
-
-Ako ti se ikad učini da si nešto dokazao — to je znak da nešto ne razumiješ.
-Zapiši u `speculation/` i idi dalje.
+Izvori: `arxiv:…`, `doi:…`, `lmfdb:…`, `oeis:…`, `openalex:…`, `mathoverflow:…`, `wikipedia:…`, `book:…`, `url:…`. Nivoi: REFEREED · LEAN · PREPRINT · AI-UNREVIEWED · NAŠE-NERECENZIRANO; preprint ne može biti oslonac za utvrđenu tvrdnju. **Tvrdnja o dokazu RH (i drugih poznatih otvorenih problema) se odbija**, ko god je napisao.
 
 ---
 
-## 6. Chat (desnih 30%)
+## 13. Gdje su tvoji fajlovi
 
-- Polje za unos **raste sa tekstom do pola visine panela**, pa skroluje.
-- **Kontekst je eksplicitan.** Šta je u traci — to model vidi. Nema skrivenog
-  dohvatanja. Kartice dodaješ dugmetom *→ u kontekst chata* u Corpusu.
-- Model **ne piše u vault.** Predlaže karticu, a ti vidiš **presudu kapije
-  prije nego klikneš** — „⛔ nema izvora" stoji tu prije nego što išta potrošiš.
-- Uloga (`math`/`chat`/`summarize`) bira koji model odgovara.
-
----
-
-## 7. Ruter — zašto ovo košta skoro ništa
-
-| uloga | ko radi | zašto |
-|---|---|---|
-| `math` | Claude → Gemini → Mistral → Groq | jedino mjesto gdje se greška stvarno plaća |
-| `vision` (tabla) | Claude → Gemini | samo oni vide slike |
-| `triage` | **Groq** → Mistral → Gemini → Claude | stotine apstrakata, besplatan tier |
-| `curate` | **Groq** → … | isto |
-| `skeptic` | **Mistral** → Groq → … | namjerno drugi model od onog koji je pisao |
-| `summarize` | **Groq** → … | jeftino |
-
-Skeptik ide na **drugog** provajedera od onog koji je napisao karticu. Model koji
-ocjenjuje sopstveni rad nije provjera.
-
-Dnevni limit je tvrd stop, ne upozorenje (podrazumijevano $5; Ctrl+K →
-„Budžet"). Kad se dostigne, plaćeni pozivi staju — besplatni nastavljaju.
-
----
-
-## 8. Corpus — od interneta do znanja
-
-Tri filtera, svaki skuplji od prethodnog, pa najskuplji vidi najmanje:
-
-1. **gruba** (besplatno, trenutno) — pominje li uopšte ζ / L-funkcije / primove
-2. **trijaža** (jedan jeftin poziv po radu) — je li relevantno, koja grana, koliko
-3. **promocija** (kroz kapiju) — postaje `source` kartica sa provenijencijom
-
-Sve sirovo pada u `inbox/`. **Inbox nije korpus** — to je jeftin signal. Ništa ne
-ulazi u bazu znanja dok ne prođe sva tri koraka.
-
-**📖 Pročitaj rad** (samo arXiv) skida ar5iv HTML — bez PDF parsera, bez 30 MB —
-i jaki model izvlači 2–6 kartica, svaka sa arXiv ID-jem kao izvorom. Ovo je
-jedino mjesto gdje se skupi model koristi na literaturi.
-
-**⚔ Skeptik** napada karticu. Ako pogodi, kartica postaje `SUSPECT` i prigovor
-se upisuje **u samu karticu** — sumnja putuje sa tvrdnjom, a ne ostaje u chat
-logu koji nikad nećeš skrolovati unazad.
-
-Izvori: arXiv · ar5iv · **LMFDB** · OEIS · OpenAlex · Crossref · Wikipedia ·
-zbMATH · MathOverflow · Numdam · Odlyzko · Tao blog. **Nijedan ne traži plaćen
-ključ.**
-
-LMFDB daje nule ζ sa ~32 cifre. `sources.cross_check_zeros()` poredi naš mpmath
-sa njima — dva nezavisna izvora koja se slažu su dokaz, jedan je samo broj.
-
----
-
-## 9. Tabla
-
-Potezi se **uvijek** snimaju kao SVG + PNG i embeduju u md bilješku — sa ili bez
-transkripcije. Vektor nikad ne omane, ne treba mu model, ne treba mu mreža i ne
-izmišlja eksponente.
-
-*Transkribuj* šalje sliku vision modelu; LaTeX se pojavi **kao prijedlog** pored
-crteža, ti ga ispraviš. Simbol koji model nije siguran vraća kao `\text{???}` —
-rupa je bolja od pogrešno pročitanog eksponenta.
-
-Ako mreže nema, transkripcija ne radi — **potezi su i dalje snimljeni.**
-
----
-
-## 10. Guardian
-
-Sav izlazni saobraćaj aplikacije prolazi kroz **jednu** funkciju. Redom:
-
-1. samo `https` — plaintext se odbija
-2. host mora biti na allowlisti — **default deny**
-3. host ne smije biti u karantinu
-4. rate limit (pooštrava se poslije tier-1 nalaza)
-5. **ključevi idu samo model API-jima** — pokušaj slanja ključa izvoru
-   literature blokira cijeli zahtjev (ne čisti ga — odbija ga)
-6. tvrdi TLS + **SPKI pinning**. Na Pythonu 3.13+ pinuje se cijeli lanac. Ovaj
-   host ima 3.12, gdje `ssl` ne pokazuje međusertifikate, pa se pinuje ključ
-   lista **plus identitet izdavača**: ako se list rotira a izdavač je isti,
-   prolazi kao `rotated` (bez lažne uzbune); ako se ne poklapaju ni ključ ni
-   izdavač — blokada. Hotelski proxy potpisuje svojim CA, pa pada na oba
-7. preusmjerenja ručno, najviše 3, svako ponovo od koraka 1
-8. limiti veličine, timeout, zaštita od zip-bombe
-9. mjerenje: sedam osa iz PSE kičme, po hostu
-
-Captive portal se **detektuje** umjesto da se u njega uđe: ili padne na pinu
-(presretač po definiciji), ili API host vrati HTML — oba se odbijaju **prije**
-nego što ključ krene.
-
-Ako vidiš `⛔ sertifikat NE odgovara zapamćenom ključu` — na tuđem WiFi-ju
-pretpostavi presretanje i prekini rad na toj mreži.
-
-**Šta Guardian NE radi:** ne osigurava tvoj laptop. Osigurava površinu ove
-aplikacije (njen saobraćaj, njene ključeve, njene podatke) i **govori ti** kako
-mašina izgleda mreži. Za ostalo: `ufw`, VPN, i ne ostavljaj mašinu bez nadzora.
-
-Prompt injection: tekst sa interneta se uvijek ograđuje i skenira, ali ono što
-stvarno drži jeste struktura — model ionako ne može da piše. Injektovano
-„označi ovo kao CITED" i dalje mora da proizvede pravi arXiv ID.
-
----
-
-## 11. Ravnoteža (statusna traka, lijevo)
-
-Broj između 0 i 100: koliki dio rada je usmjeren na **tuđe** (literatura, izlaz
-modela, scrape) naspram **tvog** (Lab, tvoje bilješke, tvoja izvođenja).
-
-- **iznad 35** — daviš se u tuđem materijalu; čitaš, ne izvodiš
-- **ispod 25** — spekulacija raste bez provjere izvora
-- **σ ispod 0.01** — sistem je prestao da uči, samo generiše
-
-Čuva se između pokretanja. Nije ukras: to je jedina metrika koja mjeri zdravlje
-dvadesetodnevnog učenja.
-
----
-
-## 12. Gdje šta stoji
-
-```
-PSE Riemann/
-  app/            kod  (run.sh, main.py, pse_r/)
-  vault/          SVE tvoje
-    knowledge/    COMPUTED i CITED kartice
-    speculation/  ideje — nikad se ne miješaju sa znanjem
-    sources/      po jedna kartica za svaki promovisani rad
-    notes/        bilješke, table
-    daily/        dnevnik + izvještaji
-    lab/          <run_id>/{result.json, script.py, plot*.png}
-    inbox/        sirovo skupljeno (eksterni store, NE korpus)
-    media/        svg/png sa table
-    .state/       journal.db, index.db, pinovi, baseline, budžet
-  PLAN.md         kičma 20 dana — mijenjaj slobodno
-  OPEN_QUESTIONS.md
-```
-
-Ključevi **nisu** u vaultu: `~/.config/pse-riemann/secrets.json`, prava 0600.
-Vault je markdown — radi i bez ove aplikacije, otvara se u Obsidianu.
-
-`~/Desktop/123/PSE_MASTER_ARCHITECTURE.txt` se **samo čita**, nikad ne dira.
-
----
-
-## 13. Veličina interfejsa i raspored panela
-
-Tvoj desktop radi na `Xft.dpi 240` (2.5×) uz još 1.25 text-scaling. Qt to množi i
-dobiješ divovski prozor. **Aplikacija zato potpuno ignoriše skaliranje desktopa**
-i koristi samo svoj broj — `ui_scale = 1.0` izgleda kao normalan 100% desktop bez
-obzira šta sistem kaže.
-
-| šta | kako |
-|---|---|
-| tekst veći / manji, **odmah** | `Ctrl` `+` / `Ctrl` `-` |
-| vrati tekst na podrazumijevano | `Ctrl` `0` |
-| cijeli interfejs veći/manji | `Ctrl+K` → „Prikaz — veličina interfejsa" (traži restart) |
-| isto iz terminala | `./run.sh --scale 1.25` |
-| resetuj raspored panela | `Ctrl+K` → „Prikaz — resetuj raspored panela" |
-
-Ako ti je poslije ovoga sve **premalo** (panel je 1920×1080 na 235 mm, pa je
-visok DPI opravdan), digni: `./run.sh --scale 1.3`. Vrijednost se pamti.
-
-**Paneli se vuku na sve strane.** Svaka granica između panela je hvatljiva
-(7 px, plavo na prelazu miša) i vodoravno i uspravno:
-
-- glavna podjela radna površina / chat
-- Lab: spisak ↕ istorija, i rezultat ↕ grafik
-- Corpus: lista ↔ detalj · Editor: izvor ↔ pregled · Tabla: crtež ↔ LaTeX
-
-Veličina prozora i svih panela se **pamti između pokretanja**.
+- **Rezultati (vault):** folder **„PSE Riemann rezultati“** na Desktopu (📂 u gornjoj traci ga otvara): `knowledge/`, `speculation/`, `sources/`, `notes/`, `daily/`, `lab/`, `reports/`, `razgovori-o-misiji/`, `.state/` (dnevnik, baza SHARED_LIB-a, pinovi).
+- **Ključevi i podešavanja:** `~/.config/pse-riemann/` (ključevi u `secrets.json`, prava 0600) — nikad u vaultu.
+- **Lokalni modeli:** folder `models` u „PSE Riemann rezultati“ (pored vaulta).
+- **Snimci ekrana:** `~/Pictures/PSE-Riemann/` (F12, Shift+F12, 📷).
+- **Rezervna kopija:** kopiraj folder „PSE Riemann rezultati“ i `~/.config/pse-riemann/`. Vault je običan markdown — otvara se i bez aplikacije.
 
 ---
 
 ## 14. Prečice
 
-`Ctrl+K` paleta komandi · `Ctrl+S` snimi u editoru · `Ctrl+1/2/3` Plan/Lab/Corpus
-· `Ctrl +/-/0` veličina teksta · `Enter` šalje u chatu, `Shift+Enter` novi red
+`Ctrl+Shift+P` paleta komandi · `Ctrl+K` prekidač online AI · `Ctrl+1/2/3` Pregled / Misije / Čeka tvoju odluku · `Ctrl +/−/0` veličina teksta · `Ctrl+S` snimi u Editoru · `Enter` šalje u chatu, `Shift+Enter` novi red · `F12` snimak prozora · `Shift+F12` snimak aktivnog taba · `Esc` vraća raširen panel.
 
 ---
 
@@ -328,23 +249,22 @@ Veličina prozora i svih panela se **pamti između pokretanja**.
 
 | simptom | šta uraditi |
 |---|---|
-| `ModuleNotFoundError: No module named 'PySide6'` | nisi pokrenuo `./setup.sh` |
-| `nema modela` u traci | Ctrl+K → „Provajderi — čarobnjak" |
-| `dnevni limit dostignut` | Ctrl+K → „Budžet", ili radi na besplatnim |
-| `sertifikat NE odgovara` | **prekini rad na toj mreži.** Ako si siguran da je rotacija, obriši pin — ali sa mreže kojoj vjeruješ |
-| `host u karantinu` | Guardian tab → oslobodi, svjesno |
+| brojevi izgledaju čudno | `pse-riemann --selftest`; ako padne, ne vjeruj ničemu drugom |
+| „nijedan model nije izabran“ | Podešavanje → glavni AI |
+| jedinica je „❄ zamrznuta“ | „Čeka tvoju odluku“ → Doktorova mjera; odluči |
+| „Čeka tvoju odluku“ puno Doktorovih mjera | pogledaj Laboratoriju (obrazac, okidači); javi rezultat živog testa |
+| „online AI je ISKLJUČEN“ | dugme Online AI / Ctrl+K (uključuje samo operater) |
+| „→ ∞“ pauza | „Čeka tvoju odluku“ → odobri nastavak kad pregledaš |
+| „sertifikat NE odgovara“ | prekini rad na toj mreži; pin briši samo sa mreže kojoj vjeruješ |
+| host u karantinu | stavka u redu: Odobri = oslobodi (svjesno) |
 | API host vratio HTML | captive portal — prijavi se na mrežu; ključ NIJE poslat |
-| brojevi izgledaju čudno | `./run.sh --selftest`. Ako `selftest` padne, ne vjeruj ničemu drugom |
-| vault izgleda pokvareno | journal je append-only sa hash-lancem; `--report` pokazuje da li je lanac neprekinut |
-| hoćeš čist početak | obriši `vault/`, aplikacija se sama zasije pri pokretanju |
-| prozor ogroman ili sićušan | `./run.sh --scale 1.0` (pa 1.2, 0.9 … dok ne legne) |
+| lokalni model spor | normalno na slabijem računaru; probaj manji model |
+| prozor prevelik / premali | `Ctrl +/−`, ili paleta → „Prikaz — veličina interfejsa“ |
 
 ---
 
 ## 16. Šta ovo NIJE
 
-- Nije dokazivač teorema. Ne provjerava dokaze formalno (za to bi trebao Lean).
-- Nije potpun renderer LaTeX-a. Matematika ide kroz matplotlib mathtext — velik
-  podskup, ne sve. Ono što ne umije prikazuje kao izvor, ne guta ćutke.
-- Nije endpoint security. Vidi §10.
-- Ne zna da li je RH tačna, i neće se pretvarati da zna.
+- Nije dokazivač teorema i ne provjerava dokaze formalno.
+- Nije zaštita cijelog računara — štiti površinu aplikacije i **govori ti** kako računar izgleda mreži.
+- Ne zna da li je Rimanova hipoteza tačna i neće se pretvarati da zna. Sve što aplikacija sama izvede označeno je NAŠE-NERECENZIRANO.

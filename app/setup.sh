@@ -34,12 +34,21 @@ echo "→ podižem pip…"
 "$VPY" -m pip install --upgrade pip --quiet
 
 echo "→ instaliram numpy, mpmath, matplotlib…"
-"$VPY" -m pip install --quiet numpy mpmath matplotlib
+"$VPY" -m pip install --quiet numpy mpmath matplotlib sympy scipy pytest
 
 echo "→ instaliram PySide6 (prvo Essentials, ~4× manji od punog)…"
 if ! "$VPY" -m pip install --quiet PySide6-Essentials; then
     echo "   Essentials nije prošao — probam puni PySide6…"
     "$VPY" -m pip install --quiet PySide6
+fi
+
+# Opciono: lokalni GGUF skeptik (F3). Nije obavezno — bez njega radi oblak ili
+# samo determinističke provjere. CPU wheel (bez kompajliranja). PSE_SKIP_GGUF=1 preskače.
+if [ "${PSE_SKIP_GGUF:-}" != "1" ]; then
+    echo "→ (opciono) llama-cpp-python za lokalni GGUF…"
+    "$VPY" -m pip install --quiet --only-binary :all: \
+        --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu \
+        llama-cpp-python || echo "   llama-cpp nije instaliran (preskačem — nije obavezno)"
 fi
 
 echo

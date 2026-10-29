@@ -18,7 +18,7 @@ from pathlib import Path
 
 APP_NAME = "PSE Riemann"
 APP_SLUG = "pse-riemann"
-VERSION = "0.1.0"
+VERSION = "0.3.0"     # Faza 6d: every agent is a PSE unit
 
 # --------------------------------------------------------------------------- #
 # Paths
@@ -43,25 +43,74 @@ def is_packaged() -> bool:
     return getattr(sys, "frozen", False) or PACKAGED_MARKER.exists()
 
 
+# Edition (agreement rule 38): "andrej" = the personal package with the three
+# missions and the QRH content; "public" = empty missions, empty vault, all the
+# machinery. The build writes app/.edition; a checkout is Andrej's own copy.
+EDITION_FILE = APP_DIR.parent / ".edition"
+
+
+def edition() -> str:
+    e = os.environ.get("PSE_RIEMANN_EDITION", "").strip()
+    if not e and EDITION_FILE.exists():
+        e = EDITION_FILE.read_text(encoding="utf-8").strip()
+    if not e:                       # a frozen build (PyInstaller) bakes it into the package
+        try:
+            from . import _edition  # type: ignore[attr-defined]
+            e = str(getattr(_edition, "EDITION", "")).strip()
+        except ImportError:
+            pass
+    return e if e in ("andrej", "public") else "andrej"
+
+
+def personal() -> bool:
+    return edition() == "andrej"
+
+
+RESULTS_NAME = "PSE Riemann rezultati"
+
+
+def _desktop_dir() -> Path:
+    """The user's Desktop (xdg-user-dir on Linux — it may be localised, e.g. Radna površ)."""
+    if sys.platform == "win32":
+        return Path(os.environ.get("USERPROFILE", Path.home())) / "Desktop"
+    try:
+        import subprocess
+        out = subprocess.run(["xdg-user-dir", "DESKTOP"], capture_output=True, text=True,
+                             timeout=2).stdout.strip()
+        if out and Path(out).is_dir() and Path(out) != Path.home():
+            return Path(out)
+    except (OSError, ValueError):
+        pass
+    d = Path.home() / "Desktop"
+    return d if d.is_dir() else Path.home()
+
+
+def _old_data_vault() -> Path:
+    """Where 0.1.0 – 0.2.0~rc1 kept an installed app's vault (hidden; live-test finding)."""
+    if sys.platform == "win32":
+        base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME") or (Path.home() / ".local" / "share")).expanduser()
+    return base / APP_SLUG / "vault"
+
+
 def _default_vault() -> Path:
     """
-    Beside the code when running from a checkout; in the user's data directory
-    when installed as a package.
+    Beside the code when running from a checkout. Installed as a package: a VISIBLE
+    folder on the Desktop, "PSE Riemann rezultati" (Andrej, live test 2026-10-27 —
+    the hidden ~/.local/share location made the results impossible to find).
 
-    A .deb puts the code under /opt, which you cannot write to — and a vault
-    that silently fails to save on day three of a trip is the worst possible
-    failure mode. Set PSE_RIEMANN_VAULT to put it anywhere else.
+    A .deb puts the code under /opt, which you cannot write to, so the vault can
+    never sit beside the code there. Set PSE_RIEMANN_VAULT to put it anywhere else.
     """
     if is_packaged():
-        if sys.platform == "win32":
-            base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
-        else:
-            base = Path(os.environ.get("XDG_DATA_HOME") or (Path.home() / ".local" / "share")).expanduser()
-        return base / APP_SLUG / "vault"
+        return _desktop_dir() / RESULTS_NAME / "vault"
     return PROJECT_ROOT / "vault"
 
 
 VAULT = _env_path("PSE_RIEMANN_VAULT", _default_vault())
+# the folder "Otvori folder sa rezultatima" opens: the results folder when installed
+RESULTS_DIR = VAULT.parent if (is_packaged() and VAULT.parent.name == RESULTS_NAME) else VAULT
 
 # Vault subtrees. `knowledge` is the only place a verified card may live.
 DIR_KNOWLEDGE = VAULT / "knowledge"        # CITED / COMPUTED cards
@@ -82,6 +131,17 @@ INDEX_DB = DIR_STATE / "index.db"
 BASELINE_DB = DIR_STATE / "guardian_baselines.json"
 PIN_STORE = DIR_STATE / "tls_pins.json"
 BUDGET_STORE = DIR_STATE / "budget.json"
+SHARED_LIB_DB = DIR_STATE / "shared_lib.db"   # mutable SHARED_LIB state (queue, declarations, methods, missions, reports)
+# Local GGUF models (llama-cpp). Beside the project by default, never in the vault,
+# never on git (*.gguf is gitignored). Override with PSE_RIEMANN_MODELS.
+# Local GGUF models. In a checkout: PSE Riemann/models. Installed: the code sits
+# under read-only /opt, so models live beside the vault in the user's data dir.
+DIR_MODELS = _env_path("PSE_RIEMANN_MODELS",
+                       (VAULT.parent / "models") if is_packaged() else PROJECT_ROOT / "models")
+DIR_REPORTS = VAULT / "reports"                # final reports (guarded by keeper units)
+DIR_METHODS = VAULT / "methods"                # accepted method packs
+VAULT_DIRS += [DIR_REPORTS, DIR_METHODS]
+DIR_SEALS = DIR_STATE / "seals"                # sealed copies of final reports (keepers)
 
 # Secrets NEVER live in the vault (the vault is meant to be syncable / shareable).
 if sys.platform == "win32":
@@ -156,8 +216,61 @@ LIMITS = {
 LIM = LIMITS.get(PROFILE, LIMITS["surface"])
 
 
+MIGRATED: list = []                     # what migrate_old_vault() moved (journalled at boot)
+
+_README = """PSE Riemann — rezultati
+=======================
+Ovdje instalirana aplikacija čuva sve što uradiš u njoj.
+
+  vault/lab/        lab run-ovi (skripta, brojevi, PNG grafovi)
+  vault/knowledge/  provjerene kartice
+  vault/reports/    zapečaćeni izvještaji (npr. radni tekst misija 2 i 3)
+  vault/notes/      bilješke, teme, plan, otvorena pitanja
+  vault/.state/     dnevnik (journal.db) i stanje — ne brisati, ne mijenjati rukom
+  snimci ekrana/    F12 / Shift+F12 / dugme 📷
+  models/           lokalni GGUF modeli (ako ih ovdje staviš)
+
+Ključevi NISU ovdje (~/.config/pse-riemann/secrets.json, prava 0600).
+"""
+
+
+def migrate_old_vault() -> list:
+    """Move a vault from the old hidden location to the visible results folder,
+    once, before anything opens it. Nothing is copied twice or deleted: the old
+    folder gets a note saying where everything went."""
+    import shutil
+    moved = []
+    if not is_packaged() or os.environ.get("PSE_RIEMANN_VAULT"):
+        return moved
+    old = _old_data_vault()
+    if old.exists() and not VAULT.exists() and any(old.iterdir()):
+        VAULT.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(old), str(VAULT))
+        moved.append((str(old), str(VAULT)))
+        old_models = old.parent / "models"
+        if old_models.exists() and any(old_models.iterdir()) and not DIR_MODELS.exists():
+            shutil.move(str(old_models), str(DIR_MODELS))
+            moved.append((str(old_models), str(DIR_MODELS)))
+        try:
+            (old.parent / "PREMJESTENO.txt").write_text(
+                f"Rezultati su premješteni u vidljiv folder:\n{VAULT.parent}\n", encoding="utf-8")
+        except OSError:
+            pass
+    MIGRATED[:] = moved
+    return moved
+
+
 def ensure_vault() -> None:
     """Create the vault skeleton. Idempotent. The only place that mkdirs the vault."""
+    migrate_old_vault()
+    if is_packaged() and VAULT.parent.name == RESULTS_NAME:
+        VAULT.parent.mkdir(parents=True, exist_ok=True)
+        readme = VAULT.parent / "PROČITAJ.txt"
+        if not readme.exists():
+            try:
+                readme.write_text(_README, encoding="utf-8")
+            except OSError:
+                pass
     for d in VAULT_DIRS:
         d.mkdir(parents=True, exist_ok=True)
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)

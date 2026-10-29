@@ -1,0 +1,72 @@
+{
+  "name": "liu",
+  "family": "liu",
+  "source": "arxiv:2610.12234",
+  "claimed_B": 0.87495701942,
+  "dlo": 1e-06,
+  "tol": 1e-07,
+  "exact_poly": "7884*B**3 - 18819*B**2 + 14643*B - 3686",
+  "note": "Liu, 08-12.10.2026 (arXiv 2610.12234v2). Rad: B=(18xi+7)/(18xi+9), 1188xi^3-2160xi^2+171xi+190=0; isti polinom u B je gore. Sistem: eq. balanced-extension-exponent, iv-count; licenca kappa=2B-1. 'family' je samo kontrola: sistem kao podatak mora se slagati sa ugradjenim kodom.",
+  "tags": [
+    "qrh",
+    "liu"
+  ],
+  "system": {
+    "defs": [
+      [
+        "h",
+        "(1 + b + 3*ell)/2"
+      ],
+      [
+        "lx",
+        "(1 - b - ell)/2"
+      ],
+      [
+        "ly",
+        "(1 + b - ell)/2"
+      ],
+      [
+        "cR",
+        "2/(3*kappa)"
+      ],
+      [
+        "D",
+        "3 - (1 + cR)*x"
+      ],
+      [
+        "P",
+        "(2 - cR*x)*(1 - x)"
+      ],
+      [
+        "J",
+        "(5/6 - delta)*D + delta*P"
+      ],
+      [
+        "R",
+        "1 - delta + (5/6 - delta)*delta*P/(2*J)"
+      ]
+    ],
+    "branches": [
+      {
+        "E": "-1/4 + b/6 + 5*ell/4 + (1/2 + ell)*delta + ell*x*delta - h*(1 - R)",
+        "delta": [
+          1e-06,
+          0.8333333333333334
+        ]
+      }
+    ],
+    "x_grid": [
+      0.5
+    ],
+    "line": "11/12 - ell/4",
+    "licence": "2*B - 1",
+    "b_range": [
+      0,
+      0.3
+    ],
+    "ell_range": [
+      0,
+      0.6
+    ]
+  }
+}

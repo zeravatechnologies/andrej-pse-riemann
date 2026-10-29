@@ -1,0 +1,35 @@
+<!doctype html><html lang="sr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--text-primary:#0b0b0b;--text-secondary:#52514e;--text-muted:#898781;--surface-1:#f4f3ef;--border:rgba(11,11,11,.12);--b:#c3c2b7;--t:#52514e;--radius:8px;
+--bg-success:#e6f4e6;--text-success:#1d6b1d;--bg-warning:#fdf1d8;--text-warning:#7a5200}
+@media (prefers-color-scheme:dark){:root{--text-primary:#f0efec;--text-secondary:#c3c2b7;--surface-1:#1a1a19;--border:rgba(255,255,255,.12);--b:#383835;--t:#c3c2b7;--bg-success:#16301a;--text-success:#9fe1a0;--bg-warning:#3a2c10;--text-warning:#fac775}}
+body{font-family:system-ui,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;color:var(--text-primary);background:Canvas}
+.sr-only{position:absolute;left:-9999px}
+svg .t,svg .ts,svg .th{fill:var(--text-primary);font-family:system-ui,sans-serif}svg .ts{font-size:12px;fill:var(--text-secondary)}svg .th{font-size:14px;font-weight:500}
+svg .arr{stroke:var(--text-secondary);stroke-width:1.5;fill:none}
+svg .c-teal rect{fill:#E1F5EE;stroke:#0F6E56}svg .c-teal text{fill:#085041}svg .c-coral rect{fill:#FAECE7;stroke:#993C1D}svg .c-coral text{fill:#712B13}
+</style></head><body>
+<title>QRH kontinuitet i zidovi</title><h1 style="font-size:20px;font-weight:500">Slika 3 — kontinuitet, proširenje transformacije, zidovi</h1><script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>.lb{font-size:13px;color:var(--text-secondary);margin:1.5rem 0 .25rem}.ch{position:relative;width:100%;height:260px}.tag{font-size:11px;padding:2px 8px;border-radius:8px;margin-left:6px}.ok{background:var(--bg-success);color:var(--text-success)}.pt{background:var(--bg-warning);color:var(--text-warning)}</style>
+<script>
+const M='#898781',G='rgba(137,135,129,.25)';
+const Z=(xs,ys)=>xs.map((x,i)=>({x,y:ys[i]}));
+const F=(f,a,b,n=80)=>Array.from({length:n+1},(_,i)=>{const x=a+(b-a)*i/n;return{x,y:f(x)}});
+const ln=(data,c,o={})=>Object.assign({data,borderColor:c,backgroundColor:c,borderWidth:2,pointRadius:0,showLine:true,tension:0},o);
+function mk(id,ds,xt,yt,o={}){new Chart(document.getElementById(id),{type:'scatter',data:{datasets:ds},options:{responsive:true,maintainAspectRatio:false,animation:false,
+plugins:{legend:{display:true,labels:{boxWidth:12,font:{size:11}}}},
+scales:{x:Object.assign({title:{display:true,text:xt}},o.x||{}),y:Object.assign({title:{display:true,text:yt},grid:{color:G}},o.y||{})}}})}
+</script>
+<div class="lb">A · V(ℓ) duž prave (Liuova familija); nula = granica metode</div><div class="ch"><canvas id="a"></canvas></div>
+<div class="lb">B · B* pri proširenju: t (više iste ideje) i w (cijena ideje); t=1 / w=1/4 = Xu–Sang <span class="tag pt">naš račun</span></div><div class="ch"><canvas id="b"></canvas></div>
+<div class="lb">C · Ljestvica zidova (najniže B koje zid dozvoljava) <span class="tag pt">naš račun</span></div><div class="ch"><canvas id="c"></canvas></div>
+<script>
+const L=[0,.02,.04,.06,.08,.1,.12,.14,.16,.18,.2],Vv=[-.20833,-.185,-.16166,-.13829,-.11385,-.08839,-.06227,-.03573,-.0091,.01752,.04414];
+mk('a',[ln(Z(L,Vv),'#6250d6',{pointRadius:3,label:'min_b V(ℓ)'}),{label:'11/12',data:[{x:0,y:-.20833}],backgroundColor:M,pointRadius:7},{label:'7/8',data:[{x:1/6,y:-.000228}],backgroundColor:'#1baf7a',pointRadius:7,pointStyle:'triangle'},{label:'Liu',data:[{x:.166839,y:0}],backgroundColor:'#eb6834',pointRadius:7,pointStyle:'rectRot'}],'ℓ','V');
+const T=[[0,.87495702],[.5,.87492636],[1,.87488665],[1.5,.87483318],[2,.87475723],[2.5,.87473555]];
+const W=[[0,.86998616],[.05,.86998617],[.1,.86998678],[.15,.87015337],[.2,.87155365],[.25,.87488665]];
+mk('b',[ln(T.map(p=>({x:p[0],y:p[1]})),'#2a78d6',{pointRadius:4,label:'po t (t=3 nedopustivo)'}),ln(W.map(p=>({x:4*p[0],y:p[1]})),'#eb6834',{pointRadius:4,borderDash:[6,3],label:'po 4w (w≥0.26 metoda puca)'})],'t  /  4w','B*',{y:{min:.8695,max:.8752}});
+const ladder=[['B>0.87',.87007],['ℓ/h, l_y−ℓ>11b/6',.86717],['ℓ ≤ 1/5',.86667],['l_y−ℓ, h/2<l_y',.86057],['h/2 < l_y',.85427],['l_x > ℓ (5/6)',.83337]];
+new Chart(document.getElementById('c'),{type:'bar',data:{labels:ladder.map(r=>r[0]),datasets:[{data:ladder.map(r=>r[1]),backgroundColor:ladder.map((r,i)=>i==5?'#e34948':'#2a78d6')}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{min:.82,max:.88}}}});
+</script>
+</body></html>

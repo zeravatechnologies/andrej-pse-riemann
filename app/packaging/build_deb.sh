@@ -3,13 +3,19 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"; APP="$(dirname "$HERE")"; REPO="$(dirname "$APP")"
 PY="${PYTHON:-$APP/.venv/bin/python}"
-VERSION="${1:-0.1.0}"; ARCH="${ARCH:-amd64}"; PKG="pse-riemann"
+VERSION="${1:-$(sed -n 's/^VERSION = "\([^"]*\)".*/\1/p' "$APP/pse_r/config.py")}"; ARCH="${ARCH:-amd64}"; PKG="pse-riemann"
+EDITION="${EDITION:-public}"          # rule 38: CI builds are for download pages
+printf 'EDITION = "%s"\n' "$EDITION" > "$APP/pse_r/_edition.py"
+trap 'rm -f "$APP/pse_r/_edition.py"' EXIT
+PACKS=()
+[ "$EDITION" = "andrej" ] && PACKS=(--add-data "$REPO/research/qrh-2026-10/method-packs:method-packs")
 STAGE="$HERE/stage"; OUT="$REPO/dist"
 echo "== PyInstaller bundle"
 rm -rf "$APP/build/pyi" "$STAGE"
 "$PY" -m PyInstaller --noconfirm --clean --onedir --name "$PKG" \
   --distpath "$APP/build/pyi/dist" --workpath "$APP/build/pyi/work" --specpath "$APP/build/pyi" \
   --collect-submodules pse_r --collect-data pse_r --collect-all matplotlib \
+  "${PACKS[@]}" \
   "$APP/main.py"
 APPDIR="$STAGE/opt/$PKG"; mkdir -p "$APPDIR"
 cp -a "$APP/build/pyi/dist/$PKG/." "$APPDIR/"

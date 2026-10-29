@@ -28,6 +28,12 @@ DEFAULTS: dict[str, Any] = {
     "win_state": "",
     "splits": {},           # name -> [sizes]
     "daily_cap": 5.0,
+    # "→ ∞" ceilings L, set by the operator (master §5)
+    # s/token comes from the machine profile unless the operator sets it here
+    "limits_L": {"rss_gb": 12.0, "queue": 8},
+    "machine_profile": "auto",
+    # journal retention (archive + anchor, never plain delete)
+    "journal_keep_days": 90, "journal_keep_min": 20000, "journal_max_live": 200000,
 }
 
 _CACHE: Optional[dict] = None
@@ -140,4 +146,8 @@ def base_font_pt() -> float:
     """Point size for the app stylesheet. Independent of ui_scale on purpose:
     ui_scale resizes everything, this nudges only text."""
     v = float(get("font_pt", 0) or 0)
-    return v if v > 0 else DEFAULT_FONT_PT
+    if v > 0:
+        return v                                  # the operator's own size always wins
+    from . import screen as SCR                   # else: measured from this screen
+    prof = SCR.current()
+    return prof.font_pt if prof else DEFAULT_FONT_PT
