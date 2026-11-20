@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Optional
 
 from . import settings as S
+from .i18n import tr
 
 DONE_KEY = "setup_done_v2"
 AUTOSTART_KEY = "guardian_autostart"
@@ -96,7 +97,7 @@ def _materialise(ch: ModelChoice, confirm: bool, notes: list) -> Optional[str]:
             models = dict(S.get("models") or {})
             models[pr.provider] = ch.model
             S.set_("models", models)
-        notes.append(f"{pr.label}: ključ sačuvan (secrets.json, 0600)")
+        notes.append(tr("{0}: ključ sačuvan (secrets.json, 0600)").format(pr.label))
         return pr.provider
     if ch.kind == "custom":
         pid = DECL.propose_endpoint(ch.custom_name, ch.custom_url, ch.model,
@@ -152,9 +153,9 @@ def apply(c: SetupChoices) -> dict:
     S.set_(AUTOSTART_KEY, bool(c.guardian_autostart))                # 6
     try:
         from . import autostart as AS
-        notes.append("čuvar pri prijavi: " + AS.apply_setting(bool(c.guardian_autostart)))
+        notes.append(tr("čuvar pri prijavi: {0}").format(tr(AS.apply_setting(bool(c.guardian_autostart)))))
     except OSError as e:
-        notes.append(f"čuvar pri prijavi: nije podešeno ({e})")
+        notes.append(tr("čuvar pri prijavi: nije podešeno ({0})").format(e))
     if c.contact_email.strip():
         SEC.store().set("CONTACT_EMAIL", c.contact_email.strip())
     S.set_(DONE_KEY, True)

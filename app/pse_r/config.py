@@ -145,7 +145,9 @@ DIR_SEALS = DIR_STATE / "seals"                # sealed copies of final reports 
 
 # Secrets NEVER live in the vault (the vault is meant to be syncable / shareable).
 if sys.platform == "win32":
-    CONFIG_DIR = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming")) / APP_SLUG
+    # XDG_CONFIG_HOME first: the self-test and the tests point it at a throwaway dir
+    CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME")
+                      or os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming")) / APP_SLUG
 else:
     CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME",
                                      Path.home() / ".config")).expanduser() / APP_SLUG

@@ -13,7 +13,6 @@ desktop notification daemon and to SHARED_LIB.
 """
 from __future__ import annotations
 
-import fcntl
 import os
 import signal
 import subprocess
@@ -24,7 +23,37 @@ from typing import Optional
 
 from . import config
 
+try:                                    # POSIX: advisory lock (flock)
+    import fcntl
+    msvcrt = None
+except ImportError:                     # Windows: byte-range lock (msvcrt)
+    fcntl = None
+    import msvcrt
+
 POLL_S = 5
+
+
+def supported() -> bool:
+    """The SSH guardian reads the Linux auth log and acts through sudo; on Windows
+    there is nothing for it to watch, so it never starts there (the tab says so)."""
+    return sys.platform != "win32"
+
+
+def _lock(fh) -> None:
+    """Exclusive non-blocking lock on an open file; OSError when someone holds it."""
+    if fcntl is not None:
+        fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    else:
+        fh.seek(0)
+        msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+
+
+def _unlock(fh) -> None:
+    if fcntl is not None:
+        fcntl.flock(fh, fcntl.LOCK_UN)
+    else:
+        fh.seek(0)
+        msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
 
 
 def lock_path() -> Path:
@@ -41,9 +70,11 @@ class Lock:
 
     def acquire(self) -> bool:
         lock_path().parent.mkdir(parents=True, exist_ok=True)
-        self.fh = open(lock_path(), "w")
+        # "a", not "w": a truncating open fails on Windows while another process
+        # holds the lock, and the file never carries anything (the pid is in pid_path)
+        self.fh = open(lock_path(), "a")
         try:
-            fcntl.flock(self.fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            _lock(self.fh)
         except OSError:
             self.fh.close()
             self.fh = None
@@ -57,7 +88,7 @@ class Lock:
                 pid_path().unlink()
             except OSError:
                 pass
-            fcntl.flock(self.fh, fcntl.LOCK_UN)
+            _unlock(self.fh)
             self.fh.close()
             self.fh = None
 
@@ -65,12 +96,12 @@ class Lock:
 def running_pid() -> Optional[int]:
     """PID of the running guardian, or None (the lock is the truth, not the file)."""
     try:
-        fh = open(lock_path(), "w")
+        fh = open(lock_path(), "a")
     except OSError:
         return None
     try:
-        fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        fcntl.flock(fh, fcntl.LOCK_UN)
+        _lock(fh)
+        _unlock(fh)
         return None                                      # nobody holds it
     except OSError:
         try:
@@ -90,7 +121,7 @@ def launch_command() -> list[str]:
 
 def ensure_running() -> bool:
     """Start the guardian process if it is not running ("radi uvijek")."""
-    if running_pid():
+    if not supported() or running_pid():
         return False
     subprocess.Popen(launch_command(), start_new_session=True,
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -129,6 +160,9 @@ def _notify_send(title: str, msg: str, critical: bool = False) -> None:
 
 
 def run_headless() -> int:
+    if not supported():
+        print("SSH čuvar nije dostupan na Windowsu", file=sys.stderr)
+        return 0
     config.ensure_vault()
     lk = Lock()
     if not lk.acquire():
@@ -154,6 +188,9 @@ def run_tray() -> int:
     from PySide6.QtCore import QTimer
     from PySide6.QtGui import QAction, QIcon
     from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
+    if not supported():
+        print("SSH čuvar nije dostupan na Windowsu", file=sys.stderr)
+        return 0
     config.ensure_vault()
     lk = Lock()
     if not lk.acquire():

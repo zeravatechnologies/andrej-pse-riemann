@@ -7,6 +7,8 @@ import sys
 import time
 from pathlib import Path
 
+import pytest
+
 from pse_r import autostart as AS
 from pse_r import guardian_app as GA
 
@@ -22,6 +24,7 @@ def test_single_instance_lock():
     assert GA.running_pid() is None
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="the SSH guardian is Linux-only")
 def test_headless_guardian_runs_and_stops_on_sigterm():
     env = dict(os.environ)
     p = subprocess.Popen([sys.executable, str(APP / "main.py"), "--guardian", "--headless"],
@@ -46,7 +49,7 @@ def test_headless_guardian_runs_and_stops_on_sigterm():
 
 def test_xdg_autostart_and_unit_text(monkeypatch):
     path = AS.enable_xdg()
-    txt = path.read_text()
+    txt = path.read_text(encoding="utf-8")
     assert "--guardian" in txt and "Exec=" in txt
     u = AS.unit_text(has_sudo_rule=False)
     assert "NoNewPrivileges=yes" in u and "--headless" in u and "ProtectKernelTunables=yes" in u
