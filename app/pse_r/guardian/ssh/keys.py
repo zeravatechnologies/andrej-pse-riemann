@@ -18,7 +18,10 @@ rising windows). The limits L are the operator's (settings "ssh_L").
 """
 from __future__ import annotations
 
-import pwd
+try:
+    import pwd                                          # POSIX passwd database
+except ImportError:                                     # Windows: none
+    pwd = None
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -30,6 +33,8 @@ KEEP = 8
 
 
 def local_accounts() -> set[str]:
+    if pwd is None:
+        return set()
     try:
         return {p.pw_name for p in pwd.getpwall()}
     except Exception:                                   # noqa: BLE001

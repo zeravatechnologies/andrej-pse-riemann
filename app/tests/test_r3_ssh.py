@@ -2,6 +2,7 @@
 auto-undo, the danger alarm without sudoers, template-only messages."""
 import os
 import subprocess
+import sys
 
 import pytest
 
@@ -48,6 +49,7 @@ def test_parse_ignores_other_and_rejects_garbage_ip():
 
 
 # ---------------------------------------------------------------- rotation
+@pytest.mark.skipif(sys.platform == "win32", reason="logrotate semantics: Linux renames an open file")
 def test_authlog_tail_survives_rotation_and_truncation(tmp_path):
     f = tmp_path / "auth.log"
     f.write_text(line("Invalid user a from 203.0.113.1 port 1") + "\n")
@@ -242,6 +244,7 @@ HELPER = C.HELPER_PATHS[1]
 @pytest.mark.parametrize("args", [["block-ip", "127.0.0.1"], ["block-ip", "1.2.3.4; reboot"],
                                   ["block-ip", "999.1.1.1"], ["kill-session", "1"],
                                   ["kill-session", "abc"], ["rm", "-rf"], ["unblock-ip", "::1"]])
+@pytest.mark.skipif(sys.platform == "win32", reason="the sudo helper is a Linux bash script")
 def test_helper_refuses_bad_arguments(args):
     r = subprocess.run(["bash", str(HELPER)] + args, capture_output=True)
     assert r.returncode == 2, (args, r.stderr)

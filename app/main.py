@@ -444,10 +444,11 @@ def main() -> int:
     # The operator: whoever uses the app types a name (no password). SHARED_LIB's
     # voice speaks only to a registered operator; every event carries the name.
     from PySide6.QtWidgets import QInputDialog, QLineEdit
+    from pse_r.i18n import tr
     from pse_r.shared_lib import operator as OP
     while not OP.current():
-        name, ok = QInputDialog.getText(None, "PSE Riemann — operater",
-                                        "Tvoje ime (operater):", QLineEdit.Normal,
+        name, ok = QInputDialog.getText(None, tr("PSE Riemann — operater"),
+                                        tr("Tvoje ime (operater):"), QLineEdit.Normal,
                                         OP.last_used())
         if not ok:
             return 0
@@ -455,7 +456,7 @@ def main() -> int:
             OP.set_operator(name)
         except ValueError as e:
             from PySide6.QtWidgets import QMessageBox
-            QMessageBox.warning(None, "Ime operatera", str(e))
+            QMessageBox.warning(None, tr("Ime operatera"), str(e))
 
     # the SSH guardian runs as its own process, always (round 3, item 19)
     try:

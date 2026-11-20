@@ -418,6 +418,6 @@ class SetupDialog(QDialog):
             return
         QMessageBox.information(
             self, tr("Podešeno"),
-            tr("Glavni: {0}\nSkeptik: {1}\n\n").format(out['main'] or 'bez AI', out['skeptic'] or 'nema')
+            tr("Glavni: {0}\nSkeptik: {1}\n\n").format(out['main'] or tr('bez AI'), out['skeptic'] or tr('nema'))
             + "\n".join("• " + n for n in out["notes"]))
         self.accept()

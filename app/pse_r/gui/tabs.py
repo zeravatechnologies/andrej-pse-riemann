@@ -687,6 +687,9 @@ class GuardianTab(QWidget, JobMixin):
         from ..guardian import containment as C
         from ..guardian.ssh import unit as U
         from ..shared_lib.store import store
+        if not GA.supported():
+            return [tr("## SSH čuvar"),
+                    tr("- nije dostupan na Windowsu (čita Linux auth log i radi preko sudo)"), ""]
         pid = GA.running_pid()
         ok, detail = C.have_rights()
         st = store().kv_get(U.KV_STATE, {}) or {}

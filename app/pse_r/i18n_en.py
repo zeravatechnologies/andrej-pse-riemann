@@ -1242,4 +1242,15 @@ EN = {
 'Doktor: ponovni pregled mjera': 'Doctor: re-review of measures',
 'teži ka (meki znak)': 'heading to (soft sign)',
 'ukinuto (ponovni pregled)': 'lifted (re-review)',
+# Windows build: operator prompt, setup summary, SSH guardian not available
+"PSE Riemann — operater": "PSE Riemann — operator",
+"Tvoje ime (operater):": "Your name (operator):",
+"Ime operatera": "Operator name",
+"bez AI": "no AI",
+"nema": "none",
+"isključeno": "off",
+"{0}: ključ sačuvan (secrets.json, 0600)": "{0}: key saved (secrets.json, 0600)",
+"čuvar pri prijavi: {0}": "guardian at login: {0}",
+"čuvar pri prijavi: nije podešeno ({0})": "guardian at login: not set up ({0})",
+"- nije dostupan na Windowsu (čita Linux auth log i radi preko sudo)": "- not available on Windows (it reads the Linux auth log and acts through sudo)",
 }
